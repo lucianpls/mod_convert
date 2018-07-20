@@ -6,7 +6,7 @@
  * (C)Lucian Plesea 2016-2017
  */
 
-#include "mod_reproject.h"
+#include "mod_convert.h"
 #include <jpeglib.h>
 
 static void emitMessage(j_common_ptr cinfo, int msgLevel);

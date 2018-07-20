@@ -34,6 +34,7 @@ png
 LERC
 zlib
 *.lcl
+.vs
 
 # Executables
 *.exe

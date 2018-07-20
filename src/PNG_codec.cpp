@@ -5,7 +5,8 @@
 * (C)Lucian Plesea 2016-2017
 */
 
-#include "mod_reproject.h"
+#include "mod_convert.h"
+#include <apr_errno.h>
 #include <png.h>
 #include <vector>
 
