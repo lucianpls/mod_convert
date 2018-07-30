@@ -83,7 +83,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>libhttpd.lib;libapr-1.lib;libaprutil-1.lib;jpeg.lib;libpng.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libhttpd.lib;libapr-2.lib;jpeg.lib;libpng.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalOptions>/EXPORT:convert_module,@1</AdditionalOptions>
     </Link>
