@@ -7,7 +7,6 @@
  */
 
 #include "mod_convert.h"
-#include <jpeglib.h>
 
 static void emitMessage(j_common_ptr cinfo, int msgLevel);
 static void errorExit(j_common_ptr cinfo);

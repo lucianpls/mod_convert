@@ -2,11 +2,12 @@
 * PNG_codec.cpp
 * C++ Wrapper around libpng, providing encoding and decoding functions
 *
-* (C)Lucian Plesea 2016-2017
+* This code only handles a basic subset of the PNG capabilities
+*
+* (C)Lucian Plesea 2016-2018
 */
 
 #include "mod_convert.h"
-#include <apr_errno.h>
 #include <png.h>
 #include <vector>
 
@@ -46,8 +47,10 @@ static void store_data(png_structp pngp, png_bytep data, png_size_t length)
     dst->size -= length;
 }
 
-const char *png_stride_decode(codec_params &params, const TiledRaster &raster, 
-    storage_manager &src, void *buffer)
+const char *png_stride_decode(codec_params &params,
+    const TiledRaster &raster,
+    storage_manager &src,
+    void *buffer)
 {
     char *message = NULL;
     png_structp pngp = NULL;
@@ -63,15 +66,9 @@ const char *png_stride_decode(codec_params &params, const TiledRaster &raster,
         pngp = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, pngEH, pngEH);
         infop = png_create_info_struct(pngp);
         png_set_read_fn(pngp, &src, get_data);
-        png_read_info(pngp, infop);
-        
-// TODO: Decode to expected format
-//        png_set_palette_to_rgb(pngp); // Palette to RGB
-//        png_set_tRNS_to_alpha(pngp);  // transparency palette to Alpha
-//        png_set_add_alpha(pngp, 255, PNG_FILLER_AFTER); // Add alpha if not there
-//        png_read_update_info(pngp, infop); // update the reader
 
-// TODO: Check that it matches the expected raster
+        // This reads all chunks up to the first IDAT
+        png_read_info(pngp, infop);
         png_get_IHDR(pngp, infop, &width, &height, &bit_depth, &ct, NULL, NULL, NULL);
 
         if (static_cast<png_uint_32>(raster.pagesize.y) != height 
@@ -81,16 +78,22 @@ const char *png_stride_decode(codec_params &params, const TiledRaster &raster,
         if (png_get_rowbytes(pngp, infop) != params.line_stride)
             throw "Wrong type of data in PNG encode";
 
+#if defined(NEED_SWAP)
+        if (bit_depth > 8)
+            png_set_swap(pngp);
+#endif
+
+        // TODO: Decode to expected format
+        //        png_set_palette_to_rgb(pngp); // Palette to RGB
+        //        png_set_tRNS_to_alpha(pngp);  // transparency palette to Alpha
+        //        png_set_add_alpha(pngp, 255, PNG_FILLER_AFTER); // Add alpha if not there
+        //        png_read_update_info(pngp, infop); // update the reader
+
+        // Call this after using any of the png_set_*
+        png_read_update_info(pngp, infop);
+
         png_read_image(pngp, png_rowp.data());
         png_read_end(pngp, infop);
-
-        if (bit_depth == 16)
-        for (size_t i = 0; i < png_rowp.size(); i++) {
-            unsigned short int*p = reinterpret_cast<unsigned short int *>(png_rowp[i]);
-            // Swap bytes to host order, in place, on little endian hosts
-            for (int j = 0; j < raster.pagesize.x; j++, p++)
-                *p = ntoh16(*p);
-        }
     }
     catch (const char *error) {
         message = params.error_message;
@@ -133,16 +136,14 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
         if (params.has_transparency)
             png_set_tRNS(pngp, infop, 0, 0, &params.NDV);
 
+#if defined(NEED_SWAP)
+        if (params.bit_depth > 8)
+            png_set_swap(pngp);
+#endif
+
         int rowbytes = png_get_rowbytes(pngp, infop);
-        for (size_t i = 0; i < png_rowp.size(); i++) {
+        for (size_t i = 0; i < png_rowp.size(); i++)
             png_rowp[i] = reinterpret_cast<png_bytep>(src.buffer + i*rowbytes);
-            if (params.bit_depth == 16) {
-                unsigned short int*p = reinterpret_cast<unsigned short int *>(png_rowp[i]);
-                // Swap bytes to net order, in place
-                for (int j = 0; j < rowbytes / 2; j++, p++)
-                    *p = hton16(*p);
-            }
-        }
 
         png_write_info(pngp, infop);
         png_write_image(pngp, png_rowp.data());
@@ -165,9 +166,11 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
 
 int set_png_params(const TiledRaster &raster, png_params *params) {
     // Pick some defaults
-    params->bit_depth = 8;
+    // Only handles 8 or 16 bits
+    params->bit_depth = raster.datatype == GDT_Byte ? 8 : 16;
     params->compression_level = 6;
     params->has_transparency = FALSE;
+
     switch (raster.pagesize.c) {
     case 1:
         params->color_type = PNG_COLOR_TYPE_GRAY;
@@ -182,7 +185,5 @@ int set_png_params(const TiledRaster &raster, png_params *params) {
         params->color_type = PNG_COLOR_TYPE_RGBA;
         break;
     }
-    if (raster.datatype != GDT_Byte)
-        params->bit_depth = 16; // PNG only handles 8 or 16 bits
-    return APR_SUCCESS;
+    return 0;
 }
