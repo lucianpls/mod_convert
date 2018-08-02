@@ -11,9 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ahtse_util.h" />
     <ClInclude Include="src\mod_convert.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ahtse_util.cpp" />
     <ClCompile Include="src\JPEG_codec.cpp" />
     <ClCompile Include="src\mod_convert.cpp" />
     <ClCompile Include="src\PNG_codec.cpp" />
@@ -59,7 +61,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <TargetExt>.so</TargetExt>
-    <IncludePath>\Apache24\include;jpeg;png;zlib;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>src;\Apache24\include;jpeg;png;zlib;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <LibraryPath>\Apache24\lib;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(NETFXKitsDir)Lib\um\x86</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

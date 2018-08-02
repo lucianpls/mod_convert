@@ -1,12 +1,15 @@
 /*
  * JPEG_Codec.cpp
  * C++ Wrapper around libjpeg, providing encoding and decoding functions
- * uses C++ throw-catch instead of setjmp
  *
- * (C)Lucian Plesea 2016-2017
+ * use setjmp, the only safe way to mix C++ and libjpeg and still get error messages
+ *
+ * (C)Lucian Plesea 2016-2018
  */
 
 #include "mod_convert.h"
+#include <jpeglib.h>
+
 static void emitMessage(j_common_ptr cinfo, int msgLevel);
 static void errorExit(j_common_ptr cinfo);
 
@@ -73,7 +76,8 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     void *buffer)
 {
     char *rp[2]; // Two lines at a time
-    static_assert(sizeof(params.error_message) >= JMSG_LENGTH_MAX, "Message buffer too small");
+    static_assert(sizeof(params.error_message) >= JMSG_LENGTH_MAX, 
+        "Message buffer too small");
     params.error_message[0] = 0; // Clear errors
 
     jpeg_decompress_struct cinfo;
@@ -101,7 +105,6 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     }
 
     jpeg_create_decompress(&cinfo);
-
     cinfo.src = &s;
     jpeg_read_header(&cinfo, TRUE);
     cinfo.dct_method = JDCT_FLOAT;
@@ -123,11 +126,9 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
 
     // Only if the error message hasn't been set already
     if (params.error_message[0] == 0) {
-
-        // Looks good, go ahead and decode
+        // Force output to desired number of channels
         cinfo.out_color_space = (raster.pagesize.c == 3) ? JCS_RGB : JCS_GRAYSCALE;
         jpeg_start_decompress(&cinfo);
-
         while (cinfo.output_scanline < cinfo.image_height) {
             rp[0] = (char *)buffer + params.line_stride * cinfo.output_scanline;
             rp[1] = rp[0] + params.line_stride;
@@ -138,8 +139,8 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     }
 
     jpeg_destroy_decompress(&cinfo);
-
-    return params.error_message[0] != 0 ? params.error_message : nullptr; // Either nullptr or error message
+    return params.error_message[0] != 0 ? 
+        params.error_message : nullptr; // Either nullptr or error message
 }
 
 const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src, 
@@ -159,6 +160,7 @@ const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_
     memset(&err, 0, sizeof(err));
     cinfo.err = jpeg_std_error(&err.jerr_mgr);
     err.message = params.error_message;
+    params.error_message[0] = 0; // Clear error messages
 
     if (setjmp(err.setjmpBuffer)) {
         jpeg_destroy_compress(&cinfo);
@@ -189,5 +191,6 @@ const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_
     jpeg_destroy_compress(&cinfo);
     dst.size -= mgr.free_in_buffer;
 
-    return params.error_message;
+    return params.error_message[0] != 0 ?
+        params.error_message: nullptr;
 }
