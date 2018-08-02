@@ -40,13 +40,22 @@ static void *create_dir_config(apr_pool_t *p, char * /* path */)
 }
 
 static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src, const char *conf_name) {
-    return NULL;
+    const char *err_message;
+    apr_table_t *kvp = read_pKVP_from_file(cmd->temp_pool, src, &err_message);
+    if (nullptr == kvp)
+        return err_message;
+
+    err_message = configRaster(cmd->pool, kvp, c->inraster);
+    if (err_message != nullptr)
+        return err_message;
+
+    return nullptr;
 }
 
 static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *pattern)
 {
     return add_regexp_to_array(cmd->pool, &c->arr_rxp, pattern);
-    return NULL;
+    return nullptr;
 }
 
 static const command_rec cmds[] =

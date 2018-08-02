@@ -111,6 +111,13 @@ struct TiledRaster {
     struct bbox_t bbox;
 };
 
+struct rset {
+    // Resolution, units per pixel
+    double rx, ry;
+    // In tiles
+    int w, h;
+};
+
 typedef struct {
     char *buffer;
     int size;
@@ -124,6 +131,20 @@ GDALDataType getDT(const char *name);
 const char *get_xyzc_size(struct sz *size, const char *s);
 
 // Add the compiled pattern tot the regexp array.  It allocates the array if necessary
-const char *add_regexp_to_array(apr_pool_t *p, apr_array_header_t **parr, const char *pattern);
+const char *add_regexp_to_array(apr_pool_t *pool, apr_array_header_t **parr, const char *pattern);
+
+//
+// Reads a text file and returns a table where the first token of each line is the key
+// and the rest of the line is the value.  Empty lines and lines that start with # are ignored
+//
+apr_table_t *read_pKVP_from_file(apr_pool_t *pool, const char *fname, const char **err_message);
+
+// Initialize a raster from a kvp table
+const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, struct TiledRaster &raster);
+
+// Return a GDALDataType from a name, or GDT_Byte
+GDALDataType getDT(const char *name);
+
+const char *getBBox(const char *line, bbox_t &bbox);
 
 #endif
