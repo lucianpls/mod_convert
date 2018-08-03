@@ -9,6 +9,8 @@
 #if !defined(MOD_CONVERT_H)
 #define MOD_CONVERT_H
 #include <ahtse_util.h>
+
+// Should get rid of this one, only needed for the png params
 #include <png.h>
 // #include <jpeglib.h>
 
@@ -45,9 +47,11 @@ struct png_params : codec_params {
     int color_type, bit_depth;
     // 0 to 9
     int compression_level;
+
     // If true, NDV is the transparent color
     int has_transparency;
-    // If has_transparency, this is the transparent color definition
+
+    // If has_transparency is on, this is the transparent color definition
     png_color_16 NDV;
 };
 
@@ -71,14 +75,12 @@ struct convert_conf {
     TiledRaster raster, inraster;
     // const char *source, *postfix;
 
-
+    // internal path of source
+    char *source;
 
     apr_uint64_t seed;
-    // Buffer fro the empty tile etag
-    char eTag[16];
-
-    // Empty tile in RAM, if defined
-    storage_manager empty;
+    // The empty tile and the empty etag
+    empty_conf_t empty;
 
     // Meaning depends on output format
     double quality;

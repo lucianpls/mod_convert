@@ -5,6 +5,7 @@
 // It should not be needed here
 #include <httpd.h>
 #include <http_config.h>
+#include <http_protocol.h>
 #include <apr_strings.h>
 #include <ap_regex.h>
 
@@ -148,8 +149,10 @@ const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, TiledRaster &raster
         && nullptr != (err_message = get_xyzc_size(&raster.pagesize, line)))
             return apr_pstrcat(pool, "PageSize ", err_message, NULL);
 
+    // This sets Byte as the default
     raster.datatype = getDT(apr_table_get(kvp, "DataType"));
 
+    // Following fields are optional, sometimes ignored on purpose
     if (nullptr != (line = apr_table_get(kvp, "SkippedLevels")))
         raster.skip = int(apr_atoi64(line));
 
@@ -171,12 +174,17 @@ const char *getBBox(const char *line, bbox_t &bbox)
 {
     const char *lcl = setlocale(LC_NUMERIC, NULL);
     const char *message = "incorrect format, expecting four comma separated C locale numbers";
+
     char *l;
     setlocale(LC_NUMERIC, "C");
-    bbox.xmin = strtod(line, &l); if (*l++ != ',') goto done;
-    bbox.ymin = strtod(l, &l);    if (*l++ != ',') goto done;
-    bbox.xmax = strtod(l, &l);    if (*l++ != ',') goto done;
-    bbox.ymax = strtod(l, &l);    if (*l++ != ',') goto done;
+    bbox.xmin = strtod(line, &l);
+    if (*l++ != ',') goto done;
+    bbox.ymin = strtod(l, &l);
+    if (*l++ != ',') goto done;
+    bbox.xmax = strtod(l, &l);
+    if (*l++ != ',') goto done;
+    bbox.ymax = strtod(l, &l);
+    if (*l++ != ',') goto done;
     message = nullptr;
 
 done:
@@ -269,4 +277,84 @@ char *readFile(apr_pool_t *pool, storage_manager &empty, const char *line)
         return apr_psprintf(pool, "Can't read from %s: %pm", efname, &stat);
     apr_file_close(efile);
     return NULL;
+}
+
+bool requestMatches(request_rec *r, apr_array_header_t *arr) {
+    if (nullptr == arr || nullptr == r)
+        return false;
+
+    // Match the request, including the arguments if present
+    const char *url_to_match = r->args ? apr_pstrcat(r->pool, r->uri, "?", r->args, NULL) : r->uri;
+    for (int i = 0; i < arr->nelts; i++)
+        if (ap_rxplus_exec(r->pool, APR_ARRAY_IDX(arr, i, ap_rxplus_t *), url_to_match, nullptr))
+            return true;
+
+    return false;
+}
+
+apr_array_header_t *tokenize(apr_pool_t *p, const char *src, char sep) {
+    apr_array_header_t *arr = nullptr;
+    char *val;
+
+    // Skip the separators from the start of the string
+    while (sep == *src)
+        src++;
+
+    while (nullptr != (val = ap_getword(p, &src, sep))) {
+        if (nullptr == arr)
+            arr = apr_array_make(p, 10, sizeof(char *));
+        char **newelt = (char **)apr_array_push(arr);
+        *newelt = val;
+    }
+
+    return arr;
+}
+
+int etagMatches(request_rec *r, const char *ETag) {
+    const char *ETagIn = apr_table_get(r->headers_in, "If-None-Match");
+    return ETagIn != 0 && strstr(ETagIn, ETag);
+}
+
+// Sends an image, sets the output mime_type.
+// If mime_type is empty or "auto", it can detect the type based on 32bit signature
+int sendImage(request_rec *r, const storage_manager &src, const char *mime_type)
+{
+    apr_uint32_t sig = *reinterpret_cast<apr_int32_t *>(src.buffer);
+    if (mime_type == nullptr || apr_strnatcmp(mime_type, "auto")) {
+        // Set the type based on signature
+        switch (sig) {
+        case JPEG_SIG:
+            mime_type = "image/jpeg";
+            break;
+        case PNG_SIG:
+            mime_type = "image/png";
+            break;
+        default: // LERC and others go here
+            mime_type = "application/octet";
+        }
+    }
+    ap_set_content_type(r, mime_type);
+    if (GZIP_SIG == sig)
+        apr_table_setn(r->headers_out, "Content-Encoding", "gzip");
+
+    // Finally, the data itself
+    ap_set_content_length(r, src.size);
+    ap_rwrite(src.buffer, src.size, r);
+    // Response is done
+    return OK;
+}
+
+// Called with an empty tile configuration, send the empty tile with the proper ETag
+// Handles conditional requests
+int sendEmptyTile(request_rec *r, const empty_conf_t &empty) {
+    if (etagMatches(r, empty.eTag)) {
+        apr_table_setn(r->headers_out, "ETag", empty.eTag);
+        return HTTP_NOT_MODIFIED;
+    }
+
+    if (nullptr != empty.empty.buffer)
+        return DECLINED;
+
+    apr_table_setn(r->headers_out, "ETag", empty.eTag);
+    return sendImage(r, empty.empty);
 }

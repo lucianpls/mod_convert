@@ -8,6 +8,7 @@
 
 #if !defined(AHTSE_UTIL_H)
 #define AHTSE_UTIL_H
+#include <httpd.h>
 #include <apr.h>
 #include <apr_tables.h>
 #include <apr_pools.h>
@@ -71,6 +72,13 @@
 // Accept empty tiles up to this size
 #define MAX_READ_SIZE (1024*1024)
 
+// removes and returns the value of the last element from an apr_array, as type
+// will crash by dereferencing the null pointer if the array is empty
+#define ARRAY_POP(arr, type) (*(type *)(apr_array_pop(arr)))
+
+// Returns a bad request code if condition is met
+#define RETURN_ERR_IF(X) if (X) { return HTTP_BAD_REQUEST;}
+
 // Pixel value data types
 // Copied and slightly modified from GDAL
 typedef enum {
@@ -127,6 +135,14 @@ typedef struct {
     int size;
 } storage_manager;
 
+struct empty_conf_t {
+    // Buffer for the empty tile etag
+    char eTag[16];
+
+    // Empty tile in RAM, if defined
+    storage_manager empty;
+};
+
 // Return a GDAL data type by name
 GDALDataType getDT(const char *name);
 
@@ -166,5 +182,25 @@ void tobase32(apr_uint64_t value, char *buffer, int flag = 0);
 // The line can contain the size and offset, white space separated, before the file name
 //
 char *readFile(apr_pool_t *pool, storage_manager &empty, const char *line);
+
+// Returns true if one of the regexps compiled in the array match the full request, including args
+bool requestMatches(request_rec *r, apr_array_header_t *arr);
+
+// tokenize a string into an array, based on a character. Returns nullptr if unsuccessful
+apr_array_header_t *tokenize(apr_pool_t *p, const char *src, char sep = '/');
+
+// returns true if the If-None-Match request etag matches
+int etagMatches(request_rec *r, const char *ETag);
+
+// Returns an image and a 200 error code
+// Sets the mime type if provided, but it doesn't overwrite an already set one\
+// Also sets gzip encoding if the content is gzipped and the requester handles it
+// Does not handle conditional response or setting ETags, those should already be set
+// src.buffer should hold at least 4 bytes
+int sendImage(request_rec *r, const storage_manager &src, const char *mime_type = nullptr);
+
+// Called with an empty tile configuration, send the empty tile with the proper ETag
+// Handles conditional requests
+int sendEmptyTile(request_rec *r, const empty_conf_t &empty);
 
 #endif

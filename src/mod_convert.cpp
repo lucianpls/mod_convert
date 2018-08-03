@@ -13,6 +13,8 @@
 #include <http_request.h>
 #include <http_log.h>
 
+#include <apr_strings.h>
+
 #include "mod_convert.h"
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
@@ -30,6 +32,35 @@ APLOG_USE_MODULE(convert);
 
 static int handler(request_rec *r)
 {
+    const char *message;
+    if (r->method_number != M_GET || nullptr != r->args)
+        return DECLINED;
+
+    convert_conf *cfg = reinterpret_cast<convert_conf *>(
+        ap_get_module_config(r->per_dir_config, &convert_module));
+
+    if (nullptr == cfg || nullptr == cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
+        return DECLINED;
+
+    apr_array_header_t *tokens = tokenize(r->pool, r->uri);
+    if (tokens->nelts < 3)
+        return DECLINED; // At least three values, for RLC
+
+    sz tile;
+    memset(&tile, 0, sizeof(sz));
+
+    tile.x = apr_atoi64(ARRAY_POP(tokens, char *)); RETURN_ERR_IF(errno);
+    tile.y = apr_atoi64(ARRAY_POP(tokens, char *)); RETURN_ERR_IF(errno);
+    tile.l = apr_atoi64(ARRAY_POP(tokens, char *)); RETURN_ERR_IF(errno);
+
+    // Ignore the error on the M, it defaults to zero
+    if (cfg->raster.size.z != 1 && tokens->nelts > 0)
+        tile.z = apr_atoi64(ARRAY_POP(tokens, char *));
+
+    // But we still need to check the results a bit
+    if (tile.x < 0 || tile.y < 0 || tile.l < 0)
+        return sendEmptyTile(r, cfg->empty);
+
     return DECLINED;
 }
 
@@ -56,16 +87,23 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
         return err_message;
 
     err_message = configRaster(cmd->pool, kvp, c->raster);
+    if (err_message != nullptr)
+        return err_message;
+
+    // Mandatory fields for convert
+    if (nullptr == (line = apr_table_get(kvp, "SourcePath")))
+        return "SourcePath missing";
+    c->source = apr_pstrdup(cmd->pool, line);
 
     int flag;
     line = apr_table_get(kvp, "ETagSeed");
     // Ignore the flag in the seed
     c->seed = line == nullptr ? 0 : base32decode(line, &flag);
     // Set the missing tile etag, with the flag set because it is the empty tile etag
-    tobase32(c->seed, c->eTag, 1);
+    tobase32(c->seed, c->empty.eTag, 1);
 
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
-        && nullptr != (err_message = readFile(cmd->pool, c->empty, line)))
+        && nullptr != (err_message = readFile(cmd->pool, c->empty.empty, line)))
             return err_message;
 
     return nullptr;
