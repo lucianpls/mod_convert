@@ -69,12 +69,18 @@ struct convert_conf {
     apr_array_header_t *arr_rxp;
 
     TiledRaster raster, inraster;
-    const char *source, *postfix;
+    // const char *source, *postfix;
+
+
+
+    apr_uint64_t seed;
+    // Buffer fro the empty tile etag
+    char eTag[16];
 
     // Empty tile in RAM, if defined
     storage_manager empty;
 
-    // Meaning depends on format
+    // Meaning depends on output format
     double quality;
 };
 

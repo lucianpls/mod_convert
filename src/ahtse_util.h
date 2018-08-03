@@ -67,6 +67,10 @@
 
 #endif
 
+#define READ_RIGHTS APR_FOPEN_READ | APR_FOPEN_BINARY | APR_FOPEN_LARGEFILE
+// Accept empty tiles up to this size
+#define MAX_READ_SIZE (1024*1024)
+
 // Pixel value data types
 // Copied and slightly modified from GDAL
 typedef enum {
@@ -137,7 +141,7 @@ const char *add_regexp_to_array(apr_pool_t *pool, apr_array_header_t **parr, con
 // Reads a text file and returns a table where the first token of each line is the key
 // and the rest of the line is the value.  Empty lines and lines that start with # are ignored
 //
-apr_table_t *read_pKVP_from_file(apr_pool_t *pool, const char *fname, const char **err_message);
+apr_table_t *readAHTSEConfig(apr_pool_t *pool, const char *fname, const char **err_message);
 
 // Initialize a raster from a kvp table
 const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, struct TiledRaster &raster);
@@ -145,6 +149,22 @@ const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, struct TiledRaster 
 // Return a GDALDataType from a name, or GDT_Byte
 GDALDataType getDT(const char *name);
 
+// Reads a bounding box, x,y,X,Y order.  Expects up to four numbers in C locale, comma separated
 const char *getBBox(const char *line, bbox_t &bbox);
+
+// From a string in base32 returns a 64bit int plus the extra boolean flag
+apr_uint64_t base32decode(const char *is, int *flag);
+
+// Encode a 64 bit integer to base32 string. Buffer should be at least 13 chars
+void tobase32(apr_uint64_t value, char *buffer, int flag = 0);
+
+//
+// Read the empty file in a provided storage buffer
+// the buffer gets alocated from the pool
+// returns error message if something went wrong
+// Maximum read size is set by MAX_READ_SIZE macro
+// The line can contain the size and offset, white space separated, before the file name
+//
+char *readFile(apr_pool_t *pool, storage_manager &empty, const char *line);
 
 #endif

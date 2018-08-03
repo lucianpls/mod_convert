@@ -41,7 +41,8 @@ static void *create_dir_config(apr_pool_t *p, char * /* path */)
 
 static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src, const char *conf_name) {
     const char *err_message;
-    apr_table_t *kvp = read_pKVP_from_file(cmd->temp_pool, src, &err_message);
+    const char *line; // temporary input
+    apr_table_t *kvp = readAHTSEConfig(cmd->temp_pool, src, &err_message);
     if (nullptr == kvp)
         return err_message;
 
@@ -49,13 +50,30 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     if (err_message != nullptr)
         return err_message;
 
+    // The output configuration file
+    kvp = readAHTSEConfig(cmd->temp_pool, conf_name, &err_message);
+    if (nullptr == kvp)
+        return err_message;
+
+    err_message = configRaster(cmd->pool, kvp, c->raster);
+
+    int flag;
+    line = apr_table_get(kvp, "ETagSeed");
+    // Ignore the flag in the seed
+    c->seed = line == nullptr ? 0 : base32decode(line, &flag);
+    // Set the missing tile etag, with the flag set because it is the empty tile etag
+    tobase32(c->seed, c->eTag, 1);
+
+    if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
+        && nullptr != (err_message = readFile(cmd->pool, c->empty, line)))
+            return err_message;
+
     return nullptr;
 }
 
 static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *pattern)
 {
     return add_regexp_to_array(cmd->pool, &c->arr_rxp, pattern);
-    return nullptr;
 }
 
 static const command_rec cmds[] =

@@ -68,7 +68,7 @@ const char *add_regexp_to_array(apr_pool_t *p, apr_array_header_t **parr, const 
     return (nullptr != *m) ? nullptr : "Bad regular expression";
 }
 
-apr_table_t *read_pKVP_from_file(apr_pool_t *pool, const char *fname, const char **err_message)
+apr_table_t *readAHTSEConfig(apr_pool_t *pool, const char *fname, const char **err_message)
 {
     *err_message = nullptr;
     ap_configfile_t *cfg_file;
@@ -182,4 +182,91 @@ const char *getBBox(const char *line, bbox_t &bbox)
 done:
     setlocale(LC_NUMERIC, lcl);
     return message;
+}
+
+// Return the value from a base 32 character
+// Returns a negative value if char is not a valid base32 char
+// ASCII only
+static int b32(char ic) {
+    int c = 0xff & (static_cast<int>(ic));
+    if (c < '0') return -1;
+    if (c - '0' < 10) return c - '0';
+    if (c < 'A') return -1;
+    if (c - 'A' < 22) return c - 'A' + 10;
+    if (c < 'a') return -1;
+    if (c - 'a' < 22) return c - 'a' + 10;
+    return -1;
+}
+
+apr_uint64_t base32decode(const char *is, int *flag) {
+    apr_int64_t value = 0;
+    const unsigned char *s = reinterpret_cast<const unsigned char *>(is);
+    while (*s == static_cast<unsigned char>('"'))
+        s++; // Skip quotes
+    *flag = b32(*s) & 1; // Pick up the flag, least bit of top char
+                         // Initial value ignores the flag
+    int digits = 0; // How many base32 digits we've seen
+    for (int v = (b32(*s++) >> 1); v >= 0; v = b32(*s++), digits++)
+        value = (value << 5) + v;
+    // Trailing zeros are missing if digits < 13
+    if (digits < 13)
+        value <<= 5 * (13 - digits);
+    return value;
+}
+
+void tobase32(apr_uint64_t value, char *buffer, int flag) {
+    static char b32digits[] = "0123456789abcdefghijklmnopqrstuv";
+    // First char has the flag bit
+    if (flag) flag = 1; // Normalize value
+    buffer[0] = b32digits[((value & 0xf) << 1) | flag];
+    value >>= 4; // Encoded 4 bits
+                 // Five bits at a time, 60 bytes
+    for (int i = 1; i < 13; i++) {
+        buffer[i] = b32digits[value & 0x1f];
+        value >>= 5;
+    }
+    buffer[13] = '\0';
+}
+
+char *readFile(apr_pool_t *pool, storage_manager &empty, const char *line)
+{
+    // If we're provided a file name or a size, pre-read the empty tile in the 
+    apr_file_t *efile;
+    apr_off_t offset = 0;
+    apr_status_t stat;
+    char *last;
+
+    empty.size = static_cast<int>(apr_strtoi64(line, &last, 0));
+    // Might be an offset, or offset then file name
+    if (last != line)
+        apr_strtoff(&(offset), last, &last, 0);
+
+    while (*last && isblank(*last)) last++;
+    const char *efname = last;
+
+    // Use the temp pool for the file open, it will close it for us
+    if (0 == empty.size) { // Don't know the size, get it from the file
+        apr_finfo_t finfo;
+        stat = apr_stat(&finfo, efname, APR_FINFO_CSIZE, pool);
+        if (APR_SUCCESS != stat)
+            return apr_psprintf(pool, "Can't stat %s %pm", efname, &stat);
+        empty.size = static_cast<int>(finfo.csize);
+    }
+
+    if (empty.size > MAX_READ_SIZE)
+        return apr_psprintf(pool, "Empty tile too large, max is %d", MAX_READ_SIZE);
+
+    stat = apr_file_open(&efile, efname, READ_RIGHTS, 0, pool);
+    if (APR_SUCCESS != stat)
+        return apr_psprintf(pool, "Can't open empty file %s, %pm", efname, &stat);
+    empty.buffer = static_cast<char *>(apr_palloc(pool, (apr_size_t)empty.size));
+    stat = apr_file_seek(efile, APR_SET, &offset);
+    if (APR_SUCCESS != stat)
+        return apr_psprintf(pool, "Can't seek empty tile %s: %pm", efname, &stat);
+    apr_size_t size = static_cast<apr_size_t>(empty.size);
+    stat = apr_file_read(efile, empty.buffer, &size);
+    if (APR_SUCCESS != stat)
+        return apr_psprintf(pool, "Can't read from %s: %pm", efname, &stat);
+    apr_file_close(efile);
+    return NULL;
 }
