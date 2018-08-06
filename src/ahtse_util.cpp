@@ -312,7 +312,8 @@ apr_array_header_t *tokenize(apr_pool_t *p, const char *src, char sep) {
 
 int etagMatches(request_rec *r, const char *ETag) {
     const char *ETagIn = apr_table_get(r->headers_in, "If-None-Match");
-    return ETagIn != 0 && strstr(ETagIn, ETag);
+    // There can be more than one code in the input etag, check for the right substring
+    return 0 != strstr(ETagIn, ETag);
 }
 
 // Sends an image, sets the output mime_type.

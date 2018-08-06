@@ -8,6 +8,7 @@
  */
 
 #include "mod_convert.h"
+#include "BitMask2D.h"
 #include <jpeglib.h>
 
 static void emitMessage(j_common_ptr cinfo, int msgLevel);

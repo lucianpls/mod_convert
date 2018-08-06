@@ -17,6 +17,13 @@
 // #include <httpd.h>
 // #include <http_config.h>
 
+// Byte swapping, linux style
+#if defined(WIN32) // Windows
+//#define __builtin_bswap16(v) _byteswap_ushort(v)
+//#define __builtin_bswap32(v) _byteswap_ulong(v)
+//#define __builtin_bswap64(v) _byteswap_uint64(v)
+#endif
+
 // Conversion to and from network order, endianess depenent
 // Define 4cc signatures for known types, with the correct endianess
 #if APR_IS_BIGENDIAN // Big endian, do nothing
@@ -31,17 +38,7 @@
 // This one is not an image type, but an encoding
 #define GZIP_SIG 0x1f8b0800
 
-//#define ntoh16(v)  (v)
-//#define hton16(v)  (v)
-//#define ntoh32(v)  (v)
-//#define ntoh64(v)  (v)
-//#define hton32(v)  (v)
-//#define hton64(v)  (v)
-
 #else // Little endian
-
-// For data that needs to be in big endian
-#define NEED_SWAP 1
 
 #define PNG_SIG  0x474e5089
 #define JPEG_SIG 0xe0ffd8ff
@@ -49,22 +46,6 @@
 
 // This one is not an image type, but an encoding
 #define GZIP_SIG 0x00088b1f
-
-//#if defined(WIN32) // Windows
-//#define ntoh16(v) _byteswap_ushort(v)
-//#define hton16(v) _byteswap_ushort(v)
-//#define ntoh32(v) _byteswap_ulong(v)
-//#define hton32(v) _byteswap_ulong(v)
-//#define ntoh64(v) _byteswap_uint64(v)
-//#define hton64(v) _byteswap_uint64(v)
-//#else // Assume linux
-//#define ntoh16(v) __builtin_bswap16(v)
-//#define hton16(v) __builtin_bswap16(v)
-//#define ntoh32(v) __builtin_bswap32(v)
-//#define hton32(v) __builtin_bswap32(v)
-//#define ntoh64(v) __builtin_bswap64(v)
-//#define hton64(v) __builtin_bswap64(v)
-//#endif
 
 #endif
 
