@@ -10,35 +10,36 @@
 #include "mod_convert.h"
 #include "BitMask2D.h"
 #include <jpeglib.h>
+#include <jerror.h>
 
 static void emitMessage(j_common_ptr cinfo, int msgLevel);
 static void errorExit(j_common_ptr cinfo);
 
-struct ErrorMgr {
-    // The jpeg standard error manager
-    struct jpeg_error_mgr jerr_mgr;
+struct JPGHandle {
+    jmp_buf setjmpBuffer;
     // A place to hold a message
     char *message;
-    jmp_buf setjmpBuffer;
+    // Pointer to Zen chunk
+    storage_manager zenChunk;
 };
 
 static void emitMessage(j_common_ptr cinfo, int msgLevel)
 {
-    ErrorMgr* err = (ErrorMgr *)cinfo->err;
+    JPGHandle* jh = static_cast<JPGHandle *>(cinfo->client_data);
     if (msgLevel > 0) return; // No trace msgs
 
     // There can be many warnings, just store the first one
-    if (err->jerr_mgr.num_warnings++ >1)
+    if (cinfo->err->num_warnings++ >1)
         return;
-    err->jerr_mgr.format_message(cinfo, err->message);
+    cinfo->err->format_message(cinfo, jh->message);
 }
 
 // No return to caller
 static void errorExit(j_common_ptr cinfo)
 {
-    ErrorMgr* err = (ErrorMgr*) cinfo->err;
-    err->jerr_mgr.format_message(cinfo, err->message);
-    longjmp(err->setjmpBuffer, 1);
+    JPGHandle* jh = static_cast<JPGHandle *>(cinfo->client_data);
+    cinfo->err->format_message(cinfo, jh->message);
+    longjmp(jh->setjmpBuffer, 1);
 }
 
 /**
@@ -70,6 +71,53 @@ static boolean fill_input_buffer_dec(j_decompress_ptr /* cinfo */) { return TRUE
 // Called if the buffer provided is too small
 static boolean empty_output_buffer(j_compress_ptr /* cinfo */) { return FALSE; }
 
+//
+// JPEG marker processor, for the Zen app3 marker
+// Can't return error, only works if the Zen chunk is fully in buffer
+// Since this decoder has the whole JPEG in memory, we can just store a pointer
+//
+#define CHUNK_NAME "Zen"
+#define CHUNK_NAME_SIZE 4
+
+static boolean zenChunkHandler(j_decompress_ptr cinfo) {
+
+    struct jpeg_source_mgr *src = cinfo->src;
+    if (src->bytes_in_buffer < 2)
+        ERREXIT(cinfo, JERR_CANT_SUSPEND);
+
+    // Big endian length, read two bytes
+    int len = (*src->next_input_byte++) << 8;
+    len += *src->next_input_byte++;
+    // The length includes the two bytes we just read
+    src->bytes_in_buffer -= 2;
+    len -= 2;
+    // Check that it is safe to read the rest
+    if (src->bytes_in_buffer < static_cast<size_t>(len))
+        ERREXIT(cinfo, JERR_CANT_SUSPEND);
+
+    // filter chunks that have the wrong signature
+    if (static_cast<size_t>(len) < strlen("Zen")
+        || !strcmp(reinterpret_cast<const char *>(src->next_input_byte), "Zen")) {
+        src->bytes_in_buffer -= len;
+        src->next_input_byte += len;
+        return true;
+    }
+
+    // Skip the signature and keep a direct chunk pointer
+    src->bytes_in_buffer -= CHUNK_NAME_SIZE;
+    src->next_input_byte += CHUNK_NAME_SIZE;
+    len -= static_cast<int>(CHUNK_NAME_SIZE);
+
+    JPGHandle *jh = reinterpret_cast<JPGHandle *>(cinfo->client_data);
+    // Store a pointer to the Zen chunk in the handler
+    jh->zenChunk.buffer = (char *)(src->next_input_byte);
+    jh->zenChunk.size = len;
+
+    src->bytes_in_buffer -= len;
+    src->next_input_byte += len;
+    return true;
+}
+
 // IMPROVE: could reuse the cinfo, to save some memory allocation
 // IMPROVE: Use a jpeg memory manager to link JPEG memory into apache's pool mechanism
 const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
@@ -82,24 +130,27 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     params.error_message[0] = 0; // Clear errors
 
     jpeg_decompress_struct cinfo;
-    ErrorMgr err;
-    memset(&err, 0, sizeof(ErrorMgr));
+    JPGHandle jh;
+    memset(&jh, 0, sizeof(jh));
+    jpeg_error_mgr err;
+    memset(&err, 0, sizeof(err));
     // JPEG error message goes directly in the parameter error message space
-    err.message = params.error_message;
+    jh.message = params.error_message;
     struct jpeg_source_mgr s = { (JOCTET *)src.buffer, static_cast<size_t>(src.size) };
 
-    cinfo.err = jpeg_std_error(& err.jerr_mgr);
+    cinfo.err = jpeg_std_error(&err);
     // Set these after hooking up the standard error methods
-    err.jerr_mgr.error_exit = errorExit;
-    err.jerr_mgr.emit_message = emitMessage;
+    err.error_exit = errorExit;
+    err.emit_message = emitMessage;
 
     // And set our functions
     s.term_source = s.init_source = stub_source_dec;
     s.skip_input_data = skip_input_data_dec;
     s.fill_input_buffer = fill_input_buffer_dec;
     s.resync_to_restart = jpeg_resync_to_restart;
+    cinfo.client_data = &jh;
 
-    if (setjmp(err.setjmpBuffer)) {
+    if (setjmp(jh.setjmpBuffer)) {
         // errorExit comes here
         jpeg_destroy_decompress(&cinfo);
         return params.error_message;
@@ -148,10 +199,13 @@ const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_
     storage_manager &dst)
 {
     struct jpeg_compress_struct cinfo;
-    ErrorMgr err;
+    jpeg_error_mgr err;
+    JPGHandle jh;
     jpeg_destination_mgr mgr;
     int linesize;
     char *rp[2];
+
+    memset(&jh, 0, sizeof(jh));
 
     mgr.next_output_byte = (JOCTET *)dst.buffer;
     mgr.free_in_buffer = dst.size;
@@ -159,11 +213,15 @@ const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_
     mgr.empty_output_buffer = empty_output_buffer;
     mgr.term_destination = init_or_terminate_destination;
     memset(&err, 0, sizeof(err));
-    cinfo.err = jpeg_std_error(&err.jerr_mgr);
-    err.message = params.error_message;
+    cinfo.err = jpeg_std_error(&err);
+    err.error_exit = errorExit;
+    err.emit_message = emitMessage;
+
+    jh.message = params.error_message;
+    cinfo.client_data = &jh;
     params.error_message[0] = 0; // Clear error messages
 
-    if (setjmp(err.setjmpBuffer)) {
+    if (setjmp(jh.setjmpBuffer)) {
         jpeg_destroy_compress(&cinfo);
         return params.error_message;
     }
