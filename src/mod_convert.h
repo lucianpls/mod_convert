@@ -14,7 +14,10 @@
 #include <png.h>
 // #include <jpeglib.h>
 
- //
+// Max compressed input tile is 1MB
+#define DEFAULT_INPUT_SIZE (1024 * 1024)
+
+//
  // Any decoder needs a static place for an error message and a line stride when decoding
  // This structure is accepted by the decoders, regardless of type
  // For encoders, see format specific extensions below
@@ -77,10 +80,15 @@ struct convert_conf {
 
     // internal path of source
     char *source;
+    // append this to the end of request url to the input
+    char *postfix;
 
     apr_uint64_t seed;
     // The empty tile and the empty etag
     empty_conf_t empty;
+
+    // the maximum size of an input tile
+    apr_size_t max_input_size;
 
     // Meaning depends on output format
     double quality;

@@ -17,19 +17,18 @@
 
 #include "mod_convert.h"
 
+// From mod_receive
+#include <receive_context.h>
+
 extern module AP_MODULE_DECLARE_DATA convert_module;
 
 #if defined(APLOG_USE_MODULE)
 APLOG_USE_MODULE(convert);
 #endif
 
-// From mod_receive
-#include <receive_context.h>
-
 // using namespace std;
 
 #define USER_AGENT "AHTSE Convert"
-
 static int handler(request_rec *r)
 {
     const char *message;
@@ -46,6 +45,11 @@ static int handler(request_rec *r)
     if (tokens->nelts < 3)
         return DECLINED; // At least three values, for RLC
 
+    // This is a request to be handled here
+
+    // This is a server configuration error
+    SERVER_ERR_IF(!ap_get_output_filter_handle("Receive"), r, "mod_receive not found");
+
     sz tile;
     memset(&tile, 0, sizeof(sz));
 
@@ -57,9 +61,70 @@ static int handler(request_rec *r)
     if (cfg->raster.size.z != 1 && tokens->nelts > 0)
         tile.z = apr_atoi64(ARRAY_POP(tokens, char *));
 
-    // But we still need to check the results a bit
+    // But we still need to check the results
     if (tile.x < 0 || tile.y < 0 || tile.l < 0)
         return sendEmptyTile(r, cfg->empty);
+
+    // Adjust the level to the full pyramid one
+    tile.l += cfg->raster.skip;
+
+    // Outside of bounds tile
+    if (tile.l >= cfg->raster.n_levels ||
+        tile.x >= cfg->raster.rsets[tile.l].w ||
+        tile.y >= cfg->raster.rsets[tile.l].h)
+        return sendEmptyTile(r, cfg->empty);
+
+    // Same is true for outside of input bounds
+    if (tile.l >= cfg->inraster.n_levels ||
+        tile.x >= cfg->inraster.rsets[tile.l].w ||
+        tile.y >= cfg->inraster.rsets[tile.l].w)
+        return sendEmptyTile(r, cfg->empty);
+
+    // Convert to input level
+    tile.l -= cfg->inraster.skip;
+
+    // Incoming tile buffer
+    receive_ctx rctx;
+    rctx.maxsize = cfg->max_input_size;
+    rctx.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, rctx.maxsize));
+
+    // Start hooking up the input
+    ap_filter_t *rf = ap_add_output_filter("Receive", &rctx, r, r->connection);
+
+    // Create the subrequest
+    char *sub_uri = apr_pstrcat(r->pool,
+        cfg->source,
+        (tile.z == 0) ?
+        apr_psprintf(r->pool, "/%d/%d/%d",
+            static_cast<int>(tile.l),
+            static_cast<int>(tile.x),
+            static_cast<int>(tile.y)) :
+        apr_psprintf(r->pool, "/%d/%d/%d/%d",
+            static_cast<int>(tile.l),
+            static_cast<int>(tile.x),
+            static_cast<int>(tile.y),
+            static_cast<int>(tile.z)),
+        cfg->postfix,
+        NULL);
+
+    request_rec *rr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
+
+    const char *user_agent = apr_table_get(r->headers_in, "User-Agent");
+    user_agent = (nullptr == user_agent) ?
+        USER_AGENT : apr_pstrcat(r->pool, USER_AGENT ", ", user_agent, NULL);
+    apr_table_setn(rr->headers_in, "User-Agent", user_agent);
+
+    rctx.size = 0;
+    int rr_status = ap_run_sub_req(rr);
+    ap_remove_output_filter(rf);
+    if (rr_status != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, rr_status, r,
+            "Receive failed for %s", sub_uri);
+        // Pass error status along
+        return rr_status;
+    }
+
+    // TODO : Build and compare ETags
 
     return DECLINED;
 }
@@ -73,6 +138,7 @@ static void *create_dir_config(apr_pool_t *p, char * /* path */)
 static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src, const char *conf_name) {
     const char *err_message;
     const char *line; // temporary input
+    // The input configuration file
     apr_table_t *kvp = readAHTSEConfig(cmd->temp_pool, src, &err_message);
     if (nullptr == kvp)
         return err_message;
@@ -95,6 +161,7 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
         return "SourcePath missing";
     c->source = apr_pstrdup(cmd->pool, line);
 
+    // Optional fields for convert
     int flag;
     line = apr_table_get(kvp, "ETagSeed");
     // Ignore the flag in the seed
@@ -105,6 +172,13 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
         && nullptr != (err_message = readFile(cmd->pool, c->empty.empty, line)))
             return err_message;
+
+    line = apr_table_get(kvp, "InputBufferSize");
+    c->max_input_size = (line == nullptr) ? DEFAULT_INPUT_SIZE :
+        static_cast<apr_size_t>(apr_strtoi64(line, NULL, 0));
+
+    if (nullptr != (line = apr_table_get(kvp, "SourcePostfix")))
+        c->postfix = apr_pstrdup(cmd->pool, line);
 
     return nullptr;
 }

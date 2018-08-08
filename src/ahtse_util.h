@@ -60,6 +60,12 @@
 // Returns a bad request code if condition is met
 #define RETURN_ERR_IF(X) if (X) { return HTTP_BAD_REQUEST;}
 
+// It takes
+#define SERVER_ERR_IF(X, r, msg) if (X) {\
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, msg);\
+    return HTTP_INTERNAL_SERVER_ERROR;\
+}
+
 // Pixel value data types
 // Copied and slightly modified from GDAL
 typedef enum {
@@ -101,6 +107,7 @@ struct TiledRaster {
 
     // geographical projection
     const char *projection;
+
     struct bbox_t bbox;
 };
 
