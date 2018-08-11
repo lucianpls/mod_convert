@@ -6,6 +6,9 @@
 * (C) Lucian Plesea 2018
 */
 
+// #include <tuple>
+// #include <vector>
+
 #include <httpd.h>
 #include <http_main.h>
 #include <http_protocol.h>
@@ -26,7 +29,18 @@ extern module AP_MODULE_DECLARE_DATA convert_module;
 APLOG_USE_MODULE(convert);
 #endif
 
-// using namespace std;
+using namespace std;
+
+// mapping of mime-types to known formats
+// mime types, subtypes and parameters are case insensitive
+static unordered_map<const char *, img_fmt> formats = {
+    {"image/jpeg", IMG_JPEG},
+    {"image/png", IMG_PNG},
+    // TODO: This one is not right at all.  Proper media types seem to require a full parser
+    // Also, the parameter is in key=value format, with the key being case insensitive
+    // There is also the issue of where white-spaces are allowed
+    {"image/jpeg; zen=true", IMG_JPEG_ZEN}
+};
 
 #define USER_AGENT "AHTSE Convert"
 static int handler(request_rec *r)
@@ -100,10 +114,10 @@ static int handler(request_rec *r)
             static_cast<int>(tile.x),
             static_cast<int>(tile.y)) :
         apr_psprintf(r->pool, "/%d/%d/%d/%d",
+            static_cast<int>(tile.z),
             static_cast<int>(tile.l),
             static_cast<int>(tile.x),
-            static_cast<int>(tile.y),
-            static_cast<int>(tile.z)),
+            static_cast<int>(tile.y)),
         cfg->postfix,
         NULL);
 
@@ -125,6 +139,31 @@ static int handler(request_rec *r)
     }
 
     // TODO : Build and compare ETags
+
+    // What format is the source, and what is the compression we want?
+    apr_uint32_t in_format;
+    memcpy(&in_format, rctx.buffer, 4);
+
+    codec_params params;
+    memset(&params, 0, sizeof(params));
+    int pixel_size = GTDGetSize(cfg->inraster.datatype);
+    int input_line_width = static_cast<int>(cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
+    int pagesize = static_cast<int>(input_line_width * cfg->inraster.pagesize.y);
+    params.line_stride = input_line_width;
+    storage_manager src = { rctx.buffer, rctx.size };
+    void *buffer = apr_pcalloc(r->pool, pagesize);
+
+    if (JPEG_SIG == in_format) {
+        message = jpeg_stride_decode(params, cfg->inraster, src, buffer);
+    } 
+    else { // format error
+        message = "Unsupported input format";
+    }
+
+    if (message) {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
+        return HTTP_NOT_FOUND;
+    }
 
     return DECLINED;
 }

@@ -14,6 +14,9 @@
 #include <png.h>
 // #include <jpeglib.h>
 
+#include <unordered_map>
+enum img_fmt { IMG_JPEG, IMG_JPEG_ZEN, IMG_PNG };
+
 // Max compressed input tile is 1MB
 #define DEFAULT_INPUT_SIZE (1024 * 1024)
 

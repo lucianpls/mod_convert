@@ -85,6 +85,9 @@ typedef enum {
     GDT_TypeCount = 8          /* maximum type # + 1 */
 } GDALDataType;
 
+// Size in bytes
+int GTDGetSize(GDALDataType dt);
+
 // Separate channels and level, just in case
 struct sz {
     apr_int64_t x, y, z, c, l;
@@ -103,7 +106,7 @@ struct TiledRaster {
     int n_levels;
     // How many levels to skip at the top of the pyramid
     int skip;
-    int datatype;
+    GDALDataType datatype;
 
     // geographical projection
     const char *projection;

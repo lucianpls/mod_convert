@@ -13,8 +13,8 @@
 #include <cstdlib>
 // setlocale
 #include <clocale>
-
 #include <algorithm>
+#include <unordered_map>
 
 // Given a data type name, returns a data type
 GDALDataType getDT(const char *name)
@@ -34,6 +34,21 @@ GDALDataType getDT(const char *name)
         return GDT_Float64;
     else
         return GDT_Byte;
+}
+
+int GTDGetSize(GDALDataType dt) {
+    // It is not a multimap, so it doesn't take synonyms
+    static const std::unordered_map<GDALDataType, int> size_by_gdt = {
+        {GDT_Unknown, -1},
+        {GDT_Byte, 1},
+        {GDT_UInt16, 2},
+        {GDT_Int16, 2},
+        {GDT_UInt32, 4},
+        {GDT_Int32, 4},
+        {GDT_Float32, 4},
+        {GDT_Double, 8}
+    };
+    return (size_by_gdt.count(dt) == 0) ? -1 : size_by_gdt.at(dt);
 }
 
 // Returns NULL if it worked as expected, returns a four integer value from 
