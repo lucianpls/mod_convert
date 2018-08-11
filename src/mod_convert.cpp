@@ -165,6 +165,8 @@ static int handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
+    // TODO: Conversion and output
+
     return DECLINED;
 }
 
@@ -246,7 +248,7 @@ static const command_rec cmds[] =
 };
 
 static void register_hooks(apr_pool_t *p) {
-//    ap_hook_handler(handler, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_handler(handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
 module AP_MODULE_DECLARE_DATA convert_module = {

@@ -309,13 +309,13 @@ bool requestMatches(request_rec *r, apr_array_header_t *arr) {
 
 apr_array_header_t *tokenize(apr_pool_t *p, const char *src, char sep) {
     apr_array_header_t *arr = nullptr;
-    char *val;
 
     // Skip the separators from the start of the string
     while (sep == *src)
         src++;
 
-    while (nullptr != (val = ap_getword(p, &src, sep))) {
+    while (*src != 0) {
+        char *val = ap_getword(p, &src, sep);
         if (nullptr == arr)
             arr = apr_array_make(p, 10, sizeof(char *));
         char **newelt = (char **)apr_array_push(arr);
