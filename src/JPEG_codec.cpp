@@ -148,8 +148,13 @@ template<typename T> int apply_mask(BitMap2D<> *bm, T *s, int nc=3) {
     return count;
 }
 
+//
 // IMPROVE: could reuse the cinfo, to save some memory allocation
 // IMPROVE: Use a jpeg memory manager to link JPEG memory into apache's pool mechanism
+//
+// Returns an error message or nullptr if the was no error
+// A params.line_stride of 0 on return means that there was no Zen chunk, or the Zen chunk had no effect
+//
 const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     storage_manager &src,
     void *buffer)
@@ -228,7 +233,7 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
 
     params.line_stride = 0; // By default, report no mask or no corrections
 
-    // If a Zen chunk was encountered
+    // If a Zen chunk was encountered, apply it
     if (nullptr != jh.zenChunk.buffer) {
         // Mask defaults to full
         BitMap2D<> bm(
@@ -245,12 +250,15 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
             }
         }
 
-        params.line_stride = apply_mask(&bm, reinterpret_cast<unsigned char *>(buffer), 1);
+        params.line_stride = apply_mask(&bm,
+            reinterpret_cast<unsigned char *>(buffer),
+            raster.pagesize.c);
     }
 
     return nullptr; // nullptr on success
 }
 
+ // TODO: Write a Zen chunk if provided in the parameters
 const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src, 
     storage_manager &dst)
 {
