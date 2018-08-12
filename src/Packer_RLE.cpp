@@ -190,8 +190,7 @@ int RLEC3Packer::load(storage_manager *src, storage_manager *dst)
 
 int RLEC3Packer::store(storage_manager *src, storage_manager *dst)
 {
-    size_t N = src->size;
-    if (dst->size < 1 + N + N / 256)
+    if (dst->size < 1 + src->size + src->size / 256)
         return 0; // Failed, destination might overflow
     Byte c = getLeastUsed(reinterpret_cast<const Byte *>(src->buffer), src->size);
     *dst->buffer++ = static_cast<char>(c);

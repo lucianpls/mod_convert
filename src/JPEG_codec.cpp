@@ -79,6 +79,7 @@ static boolean empty_output_buffer(j_compress_ptr /* cinfo */) { return FALSE; }
 #define CHUNK_NAME "Zen"
 #define CHUNK_NAME_SIZE 4
 
+// This behaves like a skip_input_data_dec
 static boolean zenChunkHandler(j_decompress_ptr cinfo) {
 
     struct jpeg_source_mgr *src = cinfo->src;
@@ -95,9 +96,8 @@ static boolean zenChunkHandler(j_decompress_ptr cinfo) {
     if (src->bytes_in_buffer < static_cast<size_t>(len))
         ERREXIT(cinfo, JERR_CANT_SUSPEND);
 
-    // filter chunks that have the wrong signature
-    if (static_cast<size_t>(len) < strlen("Zen")
-        || !strcmp(reinterpret_cast<const char *>(src->next_input_byte), "Zen")) {
+    // filter out chunks that have the wrong signature, just skip them
+    if (strcmp(reinterpret_cast<const char *>(src->next_input_byte), "Zen")) {
         src->bytes_in_buffer -= len;
         src->next_input_byte += len;
         return true;
@@ -116,6 +116,36 @@ static boolean zenChunkHandler(j_decompress_ptr cinfo) {
     src->bytes_in_buffer -= len;
     src->next_input_byte += len;
     return true;
+}
+
+// Could be used for short int, so make it a template
+template<typename T> int apply_mask(BitMap2D<> *bm, T *s, int nc=3) {
+    int w = bm->getWidth();
+    int h = bm->getHeight();
+
+    // Count the corrections
+    int count = 0;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < h; x++) {
+            if (bm->isSet(x, y)) { // Should be non-zero
+                for (int c = 0; c < nc; c++, s++) {
+                    if (*s == 0) {
+                        *s = 1;
+                        count++;
+                    }
+                }
+            }
+            else { // Should be zero
+                for (int c = 0; c < nc; c++, s++) {
+                    if (*s != 0) {
+                        *s = 0;
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+    return count;
 }
 
 // IMPROVE: could reuse the cinfo, to save some memory allocation
@@ -158,6 +188,8 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
 
     jpeg_create_decompress(&cinfo);
     cinfo.src = &s;
+    // Set the zen chunk reader before reading the header
+    jpeg_set_marker_processor(&cinfo, JPEG_APP0 + 3, zenChunkHandler);
     jpeg_read_header(&cinfo, TRUE);
     cinfo.dct_method = JDCT_FLOAT;
 
@@ -174,8 +206,6 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     if (cinfo.image_width != raster.pagesize.x || cinfo.image_height != raster.pagesize.y)
         sprintf(params.error_message, "Wrong JPEG size on input");
 
-    // TODO: Other checks, to make sure the output buffer is the proper size
-
     // Only if the error message hasn't been set already
     if (params.error_message[0] == 0) {
         // Force output to desired number of channels
@@ -191,8 +221,34 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     }
 
     jpeg_destroy_decompress(&cinfo);
-    return params.error_message[0] != 0 ? 
-        params.error_message : nullptr; // Either nullptr or error message
+
+    // If we have an error, return now
+    if (params.error_message[0] != 0)
+        return params.error_message;
+
+    params.line_stride = 0; // By default, report no mask or no corrections
+
+    // If a Zen chunk was encountered
+    if (nullptr != jh.zenChunk.buffer) {
+        // Mask defaults to full
+        BitMap2D<> bm(
+            static_cast<unsigned int>(raster.pagesize.x),
+            static_cast<unsigned int>(raster.pagesize.y));
+
+        // A zero size zen chunk means all pixels are not black, matching the full mask
+        if (jh.zenChunk.size != 0) { // Read the mask from the chunk only for partial masks
+            RLEC3Packer packer;
+            bm.set_packer(&packer);
+            if (!bm.load(&jh.zenChunk)) {
+                sprintf(params.error_message, "Error decoding Zen mask");
+                return params.error_message;
+            }
+        }
+
+        params.line_stride = apply_mask(&bm, reinterpret_cast<unsigned char *>(buffer), 1);
+    }
+
+    return nullptr; // nullptr on success
 }
 
 const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src, 

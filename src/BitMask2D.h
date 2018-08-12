@@ -154,24 +154,27 @@ public:
 
     int store(storage_manager *dst) {
         int result;
-        storage_manager src = { reinterpret_cast<char *>(&_bits[0]), size() };
-        // Store the bytes in little endian format
+        storage_manager src = { reinterpret_cast<char *>(&_bits[0]), static_cast<int>(size()) };
+        // Store the mask units in little endian format
+        // Swab only does something on big endian architectures
         swab();
         if (_packer)
             result = _packer->store(&src, dst);
         else
             result = Packer().store(&src, dst);
+        // Convert it back to machine order
         swab();
         return result;
     }
 
     int load(storage_manager *src) {
         int result;
-        storage_manager dst = { reinterpret_cast<char *>(&_bits[0]), size() };
+        storage_manager dst = { reinterpret_cast<char *>(&_bits[0]), static_cast<int>(size()) };
         if (_packer)
             result = _packer->load(src, &dst);
         else
             result = Packer().load(src, &dst);
+        // Input is always little endian, convert it to machine order
         swab();
         return result;
     }
