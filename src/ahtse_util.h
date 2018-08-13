@@ -13,6 +13,9 @@
 #include <apr_tables.h>
 #include <apr_pools.h>
 
+// Not sure how to get rid of this one
+#include <png.h>
+
 // Always include httpd.h before other http* headers
 // #include <httpd.h>
 // #include <http_config.h>
@@ -60,9 +63,9 @@
 // Returns a bad request code if condition is met
 #define RETURN_ERR_IF(X) if (X) { return HTTP_BAD_REQUEST;}
 
-// It takes
-#define SERVER_ERR_IF(X, r, msg) if (X) {\
-    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, msg);\
+// Server error with log message
+#define SERVER_ERR_IF(X, r, msg, ...) if (X) {\
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, msg, ##__VA_ARGS__);\
     return HTTP_INTERNAL_SERVER_ERROR;\
 }
 
@@ -193,5 +196,61 @@ int sendImage(request_rec *r, const storage_manager &src, const char *mime_type 
 // Called with an empty tile configuration, send the empty tile with the proper ETag
 // Handles conditional requests
 int sendEmptyTile(request_rec *r, const empty_conf_t &empty);
+
+enum img_fmt { IMG_JPEG, IMG_JPEG_ZEN, IMG_PNG };
+
+//
+// Any decoder needs a static place for an error message and a line stride when decoding
+// This structure is accepted by the decoders, regardless of type
+// For encoders, see format specific extensions below
+//
+
+struct codec_params {
+    // Line size in bytes
+    apr_uint32_t line_stride;
+    // A place for codec error message
+    char error_message[1024];
+};
+
+// In JPEG_codec.cpp
+// raster defines the expected tile
+// src contains the input JPEG
+// buffer is the location of the first byte on the first line of decoded data
+// line_stride is the size of a line in buffer (larger or equal to decoded JPEG line)
+// Returns NULL if everything looks fine, or an error message
+struct jpeg_params : codec_params {
+    int quality;
+};
+
+const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster, storage_manager &src,
+    void *buffer);
+const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src,
+    storage_manager &dst);
+
+struct png_params : codec_params {
+    // As defined by PNG
+    int color_type, bit_depth;
+    // 0 to 9
+    int compression_level;
+
+    // If true, NDV is the transparent color
+    int has_transparency;
+
+    // If has_transparency is on, this is the transparent color definition
+    png_color_16 NDV;
+};
+
+// In PNG_codec.cpp
+// raster defines the expected tile
+// src contains the input PNG
+// buffer is the location of the first byte on the first line of decoded data
+// line_stride is the size of a line in buffer (larger or equal to decoded PNG line)
+// Returns NULL if everything looks fine, or an error message
+const char *png_stride_decode(codec_params &params, const TiledRaster &raster,
+    storage_manager &src, void *buffer);
+const char *png_encode(png_params &params, const TiledRaster &raster,
+    storage_manager &src, storage_manager &dst);
+// Based on the raster configuration, populates a png parameter structure
+int set_png_params(const TiledRaster &raster, png_params *params);
 
 #endif

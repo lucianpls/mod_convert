@@ -13,7 +13,6 @@
   <ItemGroup>
     <ClInclude Include="src\ahtse_util.h" />
     <ClInclude Include="src\BitMask2D.h" />
-    <ClInclude Include="src\mod_convert.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ahtse_util.cpp" />

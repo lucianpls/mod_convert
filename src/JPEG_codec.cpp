@@ -7,7 +7,6 @@
  * (C)Lucian Plesea 2016-2018
  */
 
-#include "mod_convert.h"
 #include "BitMask2D.h"
 #include <jpeglib.h>
 #include <jerror.h>
@@ -252,7 +251,7 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
 
         params.line_stride = apply_mask(&bm,
             reinterpret_cast<unsigned char *>(buffer),
-            raster.pagesize.c);
+            static_cast<int>(raster.pagesize.c));
     }
 
     return nullptr; // nullptr on success

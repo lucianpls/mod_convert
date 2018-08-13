@@ -7,8 +7,9 @@
 * (C)Lucian Plesea 2016-2018
 */
 
-#include "mod_convert.h"
-#include <png.h>
+// #include "mod_convert.h"
+// #include <png.h>
+#include <ahtse_util.h>
 #include <vector>
 
 // TODO: Add palette PNG support, possibly other fancy options
@@ -167,6 +168,7 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
 int set_png_params(const TiledRaster &raster, png_params *params) {
     // Pick some defaults
     // Only handles 8 or 16 bits
+    memset(params, 0, sizeof(png_params));
     params->bit_depth = raster.datatype == GDT_Byte ? 8 : 16;
     params->compression_level = 6;
     params->has_transparency = FALSE;

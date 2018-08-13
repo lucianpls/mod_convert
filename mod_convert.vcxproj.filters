@@ -14,9 +14,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\mod_convert.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\ahtse_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>

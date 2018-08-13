@@ -18,16 +18,43 @@
 
 #include <apr_strings.h>
 
-#include "mod_convert.h"
+#include <ahtse_util.h>
 
 // From mod_receive
 #include <receive_context.h>
+#include <unordered_map>
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
 
 #if defined(APLOG_USE_MODULE)
 APLOG_USE_MODULE(convert);
 #endif
+
+// Max compressed input tile is 1MB
+#define DEFAULT_INPUT_SIZE (1024 * 1024)
+
+struct convert_conf {
+    // array of guard regexp pointers, one of them has to match
+    apr_array_header_t *arr_rxp;
+
+    TiledRaster raster, inraster;
+    // const char *source, *postfix;
+
+    // internal path of source
+    char *source;
+    // append this to the end of request url to the input
+    char *postfix;
+
+    apr_uint64_t seed;
+    // The empty tile and the empty etag
+    empty_conf_t empty;
+
+    // the maximum size of an input tile
+    apr_size_t max_input_size;
+
+    // Meaning depends on output format
+    double quality;
+};
 
 using namespace std;
 
@@ -165,9 +192,31 @@ static int handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
-    // TODO: Conversion and output
+    // This part is only for converting Zen JPEGs to JPNG, as needed
+    if (JPEG_SIG == in_format && params.line_stride == 0) // Zen mask absent or superfluous
+        return sendImage(r, src, "image/jpeg");
 
-    return DECLINED;
+    // TODO: Convert to PNG with 0 set as transparency
+    png_params out_params;
+    // Set the defaults
+    set_png_params(cfg->raster, &out_params);
+
+    // By default the NDV is zero, and the NVD field is zero
+    // Check one more time that we had a Zen mask before turning the transparency on
+    if (params.line_stride != 0)
+        out_params.has_transparency = true;
+
+    storage_manager raw = {reinterpret_cast<char *>(buffer), pagesize};
+    storage_manager dst = {
+        reinterpret_cast<char *>(apr_palloc(r->pool, cfg->max_input_size)),
+        static_cast<int>(cfg->max_input_size)
+    };
+    SERVER_ERR_IF(dst.buffer == nullptr, r, "Memmory allocation error");
+
+    message = png_encode(out_params, cfg->raster, raw, dst);
+    SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+
+    return sendImage(r, dst, "image/png");
 }
 
 static void *create_dir_config(apr_pool_t *p, char * /* path */)
