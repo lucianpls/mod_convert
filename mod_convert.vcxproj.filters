@@ -48,5 +48,11 @@
     <None Include=".gitignore">
       <Filter>Support Files</Filter>
     </None>
+    <None Include="src\Makefile">
+      <Filter>Support Files</Filter>
+    </None>
+    <None Include="src\Makefile_lcl.example">
+      <Filter>Support Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
