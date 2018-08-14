@@ -187,7 +187,7 @@ apr_array_header_t *tokenize(apr_pool_t *p, const char *src, char sep = '/');
 int etagMatches(request_rec *r, const char *ETag);
 
 // Returns an image and a 200 error code
-// Sets the mime type if provided, but it doesn't overwrite an already set one\
+// Sets the mime type if provided, but it doesn't overwrite an already set one
 // Also sets gzip encoding if the content is gzipped and the requester handles it
 // Does not handle conditional response or setting ETags, those should already be set
 // src.buffer should hold at least 4 bytes

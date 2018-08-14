@@ -177,8 +177,9 @@ static Byte getLeastUsed(const Byte *src, size_t len) {
 int RLEC3Packer::load(storage_manager *src, storage_manager *dst)
 {
     // Use the first char in the input buffer as marker code
-    return dst->size == fromYarn(src->buffer + 1, src->size - 1,
-        dst->buffer, dst->size, *src->buffer);
+    return dst->size == static_cast<int>(
+        fromYarn(src->buffer + 1, src->size - 1,
+            dst->buffer, dst->size, *src->buffer));
 }
 
 //

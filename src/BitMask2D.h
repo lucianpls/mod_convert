@@ -43,7 +43,7 @@ public:
     {
         if (dst->size < src->size)
             return false;
-        std::memcpy(dst->buffer, src->buffer, src->size);
+        memcpy(dst->buffer, src->buffer, src->size);
         dst->size -= src->size; // Adjust the destination size
         return true;
     }

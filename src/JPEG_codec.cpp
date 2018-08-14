@@ -125,7 +125,7 @@ template<typename T> int apply_mask(BitMap2D<> *bm, T *s, int nc=3) {
     // Count the corrections
     int count = 0;
     for (int y = 0; y < h; y++) {
-        for (int x = 0; x < h; x++) {
+        for (int x = 0; x < w; x++) {
             if (bm->isSet(x, y)) { // Should be non-zero
                 for (int c = 0; c < nc; c++, s++) {
                     if (*s == 0) {
@@ -200,9 +200,11 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     if (!(raster.pagesize.c == 1 || raster.pagesize.c == 3))
         sprintf(params.error_message, "JPEG with wrong number of components");
 
-    if (cinfo.arith_code || !cinfo.is_baseline)
-        sprintf(params.error_message, "Unsupported JPEG type, %s", 
-            cinfo.arith_code ? "arithmetic encoding" : "not baseline");
+    // TODO: This only works in libjpeg, turbo-jpeg is different
+    //
+    //if (cinfo.arith_code || !cinfo.is_baseline)
+    //    sprintf(params.error_message, "Unsupported JPEG type, %s", 
+    //        cinfo.arith_code ? "arithmetic encoding" : "not baseline");
 
     if (cinfo.data_precision != 8)
         sprintf(params.error_message, "JPEG with more than 8 bits of data");

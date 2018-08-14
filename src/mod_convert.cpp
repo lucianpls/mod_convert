@@ -18,7 +18,7 @@
 
 #include <apr_strings.h>
 
-#include <ahtse_util.h>
+#include "ahtse_util.h"
 
 // From mod_receive
 #include <receive_context.h>

@@ -9,7 +9,7 @@
 
 // #include "mod_convert.h"
 // #include <png.h>
-#include <ahtse_util.h>
+#include "ahtse_util.h"
 #include <vector>
 
 // TODO: Add palette PNG support, possibly other fancy options
