@@ -11,6 +11,8 @@
 
 // strod
 #include <cstdlib>
+// ilogb
+#include <cmath>
 // setlocale
 #include <clocale>
 #include <algorithm>
