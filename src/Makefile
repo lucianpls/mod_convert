@@ -8,7 +8,7 @@ OBJECTS = $(C_SRC:.cpp=.lo)
 
 DEFINES = -DLINUX -D_REENTRANT -D_GNU_SOURCE
 
-LIBS = -ljpeg -lpng
+LIBS = -ljpeg -lpng -lstdc++
 
 FILES = $(C_SRC) $(HEADERS)
 
