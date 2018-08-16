@@ -6,6 +6,8 @@ HEADERS = ahtse_util.h BitMask2D.h
 
 OBJECTS = $(C_SRC:.cpp=.lo)
 
+CXXFLAGS = -prefer-pic -O2 -Wall $(DEBUG)
+
 DEFINES = -DLINUX -D_REENTRANT -D_GNU_SOURCE
 
 LIBS = -ljpeg -lpng -lstdc++
@@ -26,7 +28,7 @@ $(TARGET)	:	$(OBJECTS)
 	$(LIBTOOL) --mode=link g++ -o $(MODULE).la -rpath $(DEST) -module -avoid-version $^ $(LIBS)
 
 %.lo	:	%.cpp
-	$(LIBTOOL) --mode=compile g++ -std=c++0x -prefer-pic -O2 -Wall $(DEFINES) $(INCLUDES) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
+	$(LIBTOOL) --mode=compile g++ -std=c++0x $(CXXFLAGS) $(DEFINES) $(INCLUDES) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
 
 install	:	$(TARGET)
 	$(SUDO)	cp $(TARGET)	$(DEST)
