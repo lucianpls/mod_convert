@@ -69,6 +69,14 @@
     return HTTP_INTERNAL_SERVER_ERROR;\
 }
 
+#if defined(DEBUG)
+#define LOG(r, msg, ...) {\
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, msg, ##__VA_ARGS__);\
+}
+#else
+#define LOG()
+#endif
+
 // Pixel value data types
 // Copied and slightly modified from GDAL
 typedef enum {
