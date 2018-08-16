@@ -200,11 +200,8 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
     if (!(raster.pagesize.c == 1 || raster.pagesize.c == 3))
         sprintf(params.error_message, "JPEG with wrong number of components");
 
-    // TODO: This only works in libjpeg, turbo-jpeg is different
-    //
-    //if (cinfo.arith_code || !cinfo.is_baseline)
-    //    sprintf(params.error_message, "Unsupported JPEG type, %s", 
-    //        cinfo.arith_code ? "arithmetic encoding" : "not baseline");
+    if (jpeg_has_multiple_scans(&cinfo) ||cinfo.arith_code)
+        sprintf(params.error_message, "Unsupported JPEG type");
 
     if (cinfo.data_precision != 8)
         sprintf(params.error_message, "JPEG with more than 8 bits of data");
