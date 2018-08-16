@@ -17,7 +17,9 @@
   <ItemGroup>
     <ClCompile Include="src\ahtse_util.cpp" />
     <ClCompile Include="src\JPEG_codec.cpp" />
-    <ClCompile Include="src\mod_convert.cpp" />
+    <ClCompile Include="src\mod_convert.cpp">
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">WIN32;_DEBUG;DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="src\Packer_RLE.cpp" />
     <ClCompile Include="src\PNG_codec.cpp" />
   </ItemGroup>
@@ -82,7 +84,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>

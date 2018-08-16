@@ -330,13 +330,17 @@ apr_array_header_t *tokenize(apr_pool_t *p, const char *src, char sep) {
 int etagMatches(request_rec *r, const char *ETag) {
     const char *ETagIn = apr_table_get(r->headers_in, "If-None-Match");
     // There can be more than one code in the input etag, check for the right substring
-    return 0 != strstr(ETagIn, ETag);
+    return (nullptr != ETagIn && strstr(ETagIn, ETag) != 0);
 }
 
 // Sends an image, sets the output mime_type.
 // If mime_type is empty or "auto", it can detect the type based on 32bit signature
 int sendImage(request_rec *r, const storage_manager &src, const char *mime_type)
 {
+    // Simple case first
+    if (nullptr == src.buffer)
+        return HTTP_NOT_FOUND;
+
     apr_uint32_t sig = *reinterpret_cast<apr_int32_t *>(src.buffer);
     if (mime_type == nullptr || apr_strnatcmp(mime_type, "auto")) {
         // Set the type based on signature
