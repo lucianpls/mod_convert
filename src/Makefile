@@ -6,9 +6,9 @@ HEADERS = ahtse_util.h BitMask2D.h
 
 OBJECTS = $(C_SRC:.cpp=.lo)
 
-CXXFLAGS = -prefer-pic -O2 -Wall $(DEBUG)
+CXXFLAGS = -prefer-pic -O2 -Wall
 
-DEFINES = -DLINUX -D_REENTRANT -D_GNU_SOURCE
+DEFINES = -DLINUX -D_REENTRANT -D_GNU_SOURCE $(DEBUG)
 
 LIBS = -ljpeg -lpng -lstdc++
 
