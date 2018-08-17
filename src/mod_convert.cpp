@@ -138,13 +138,13 @@ static int handler(request_rec *r)
         (tile.z == 0) ?
         apr_psprintf(r->pool, "/%d/%d/%d",
             static_cast<int>(tile.l),
-            static_cast<int>(tile.x),
-            static_cast<int>(tile.y)) :
+            static_cast<int>(tile.y),
+            static_cast<int>(tile.x)) :
         apr_psprintf(r->pool, "/%d/%d/%d/%d",
             static_cast<int>(tile.z),
             static_cast<int>(tile.l),
-            static_cast<int>(tile.x),
-            static_cast<int>(tile.y)),
+            static_cast<int>(tile.y),
+            static_cast<int>(tile.x)),
         cfg->postfix,
         NULL);
 
