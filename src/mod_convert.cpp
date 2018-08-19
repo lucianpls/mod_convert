@@ -129,9 +129,6 @@ static int handler(request_rec *r)
     rctx.maxsize = cfg->max_input_size;
     rctx.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, rctx.maxsize));
 
-    // Start hooking up the input
-    ap_filter_t *rf = ap_add_output_filter("Receive", &rctx, r, r->connection);
-
     // Create the subrequest
     char *sub_uri = apr_pstrcat(r->pool,
         cfg->source,
@@ -148,16 +145,20 @@ static int handler(request_rec *r)
         cfg->postfix,
         NULL);
 
-    request_rec *rr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
+    request_rec *sr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
 
     const char *user_agent = apr_table_get(r->headers_in, "User-Agent");
     user_agent = (nullptr == user_agent) ?
         USER_AGENT : apr_pstrcat(r->pool, USER_AGENT ", ", user_agent, NULL);
-    apr_table_setn(rr->headers_in, "User-Agent", user_agent);
+    apr_table_setn(sr->headers_in, "User-Agent", user_agent);
 
     rctx.size = 0;
-    int rr_status = ap_run_sub_req(rr);
+    // Start hooking up the input
+    ap_filter_t *rf = ap_add_output_filter("Receive", &rctx, sr, sr->connection);
+
+    int rr_status = ap_run_sub_req(sr);
     ap_remove_output_filter(rf);
+    ap_destroy_sub_req(sr);
     if (rr_status != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rr_status, r,
             "Receive failed for %s", sub_uri);
