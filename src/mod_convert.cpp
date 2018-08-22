@@ -160,7 +160,7 @@ static int handler(request_rec *r)
     ap_remove_output_filter(rf);
     ap_destroy_sub_req(sr);
     if (rr_status != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, rr_status, r,
+        ap_log_rerror(APLOG_MARK, APLOG_NOTICE, rr_status, r,
             "Receive failed for %s", sub_uri);
         // Pass error status along
         return rr_status;
