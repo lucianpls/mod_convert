@@ -158,15 +158,17 @@ static int handler(request_rec *r)
 
     int rr_status = ap_run_sub_req(sr);
     ap_remove_output_filter(rf);
+
+    // Get a copy of the source ETag, otherwise it goes away with the subrequest
+    const char *ETag = apr_table_get(sr->headers_out, "ETag");
+    if (ETag != nullptr)
+        ETag = apr_pstrdup(r->pool, ETag);
     ap_destroy_sub_req(sr);
     if (rr_status != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_NOTICE, rr_status, r,
             "Receive failed for %s", sub_uri);
-        // Pass error status along
-        return rr_status;
+        return sendEmptyTile(r, cfg->empty);
     }
-
-    // TODO : Build and compare ETags
 
     // What format is the source, and what is the compression we want?
     apr_uint32_t in_format;
@@ -197,9 +199,7 @@ static int handler(request_rec *r)
     if (JPEG_SIG == in_format && params.line_stride == 0) // Zen mask absent or superfluous
         return sendImage(r, src, "image/jpeg");
 
-    // TODO: Convert to PNG with 0 set as transparency
     png_params out_params;
-    // Set the defaults
     set_png_params(cfg->raster, &out_params);
 
     // By default the NDV is zero, and the NVD field is zero
