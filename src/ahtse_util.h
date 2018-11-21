@@ -216,6 +216,8 @@ enum img_fmt { IMG_JPEG, IMG_JPEG_ZEN, IMG_PNG };
 struct codec_params {
     // Line size in bytes
     apr_uint32_t line_stride;
+    // Return, set if special data handling took place during decoding (zero mask on JPEG)
+    apr_uint32_t modified;
     // A place for codec error message
     char error_message[1024];
 };

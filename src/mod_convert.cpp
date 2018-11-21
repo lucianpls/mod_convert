@@ -196,7 +196,7 @@ static int handler(request_rec *r)
     }
 
     // This part is only for converting Zen JPEGs to JPNG, as needed
-    if (JPEG_SIG == in_format && params.line_stride == 0) // Zen mask absent or superfluous
+    if (JPEG_SIG == in_format && params.modified == 0) // Zen mask absent or superfluous
         return sendImage(r, src, "image/jpeg");
 
     png_params out_params;
