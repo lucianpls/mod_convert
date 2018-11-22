@@ -126,7 +126,7 @@ template<typename T> int apply_mask(BitMap2D<> *bm, T *ps, int nc=3, int line_st
     if (line_stride == 0)
         line_stride = w * nc;
     else
-        line_stride /= sizeof(T); // Convert to type stride
+        line_stride /= sizeof(T); // Convert from bytes to type stride
 
     // Count the corrections
     int count = 0;
@@ -158,10 +158,12 @@ template<typename T> int apply_mask(BitMap2D<> *bm, T *ps, int nc=3, int line_st
 // IMPROVE: could reuse the cinfo, to save some memory allocation
 // IMPROVE: Use a jpeg memory manager to link JPEG memory into apache's pool mechanism
 //
+// Byte data decompressor
 // Returns an error message or nullptr if the was no error
-// A params.line_stride of 0 on return means that there was no Zen chunk, or the Zen chunk had no effect
+// A non-zero params.modified on return means that there was a Zen chunk that had an effect
 //
-const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
+
+static const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
     storage_manager &src,
     void *buffer)
 {
@@ -258,7 +260,7 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster,
         params.modified = apply_mask(&bm,
             reinterpret_cast<unsigned char *>(buffer),
             static_cast<int>(raster.pagesize.c),
-            params.line_stride);
+            static_cast<int>(params.line_stride));
     }
 
     return nullptr; // nullptr on success
@@ -323,3 +325,10 @@ const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_
     return params.error_message[0] != 0 ?
         params.error_message: nullptr;
 }
+
+// Dispatcher for 8 or 12 bit jpeg decoder
+const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster, storage_manager &src, void *buffer)
+{
+    return jpeg8_stride_decode(params, raster, src, buffer);
+}
+
