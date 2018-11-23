@@ -15,3 +15,8 @@ const char *jpeg_stride_decode(codec_params &params, const TiledRaster &raster, 
     return jpeg8_stride_decode(params, raster, src, buffer);
 }
 
+const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src,
+    storage_manager &dst)
+{
+    return jpeg8_encode(params, raster, src, dst);
+}

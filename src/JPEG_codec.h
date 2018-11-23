@@ -45,4 +45,16 @@ const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
     storage_manager &src,
     void *buffer);
 
+const char *jpeg8_encode(jpeg_params &params, const TiledRaster &raster,
+    storage_manager &src,
+    storage_manager &dst);
+
+const char *jpeg12_stride_decode(codec_params &params, const TiledRaster &raster,
+    storage_manager &src,
+    void *buffer);
+
+const char *jpeg12_encode(jpeg_params &params, const TiledRaster &raster,
+    storage_manager &src,
+    storage_manager &dst);
+
 #endif

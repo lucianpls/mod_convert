@@ -7,9 +7,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mod_convert", "mod_convert.
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0BF87775-47D3-4CA1-BFF4-A2D0F78520E6}.Debug|x64.ActiveCfg = Debug|x64
+		{0BF87775-47D3-4CA1-BFF4-A2D0F78520E6}.Debug|x64.Build.0 = Debug|x64
 		{0BF87775-47D3-4CA1-BFF4-A2D0F78520E6}.Debug|x86.ActiveCfg = Debug|Win32
 		{0BF87775-47D3-4CA1-BFF4-A2D0F78520E6}.Debug|x86.Build.0 = Debug|Win32
 	EndGlobalSection

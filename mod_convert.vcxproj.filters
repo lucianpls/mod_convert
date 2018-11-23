@@ -15,6 +15,9 @@
     <Filter Include="Source Files\jpeg12-6b">
       <UniqueIdentifier>{554a77e8-4d32-49ff-a3f3-caf816621f2e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Support Files\jpeg12-6b">
+      <UniqueIdentifier>{1a195d0c-c2bd-4d41-b036-3e0d35b292e6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ahtse_util.h">
@@ -65,6 +68,9 @@
     </None>
     <None Include="src\Makefile_lcl.example">
       <Filter>Support Files</Filter>
+    </None>
+    <None Include="src\jpeg12-6b\makefile.vc">
+      <Filter>Support Files\jpeg12-6b</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -1,7 +1,9 @@
 #include "JPEG_codec.h"
 
+extern "C" {
 #include <jpeglib.h>
 #include <jerror.h>
+}
 
 static void emitMessage(j_common_ptr cinfo, int msgLevel);
 static void errorExit(j_common_ptr cinfo);
@@ -222,7 +224,7 @@ const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
 }
 
 // TODO: Write a Zen chunk if provided in the parameters
-const char *jpeg_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src,
+const char *jpeg8_encode(jpeg_params &params, const TiledRaster &raster, storage_manager &src,
     storage_manager &dst)
 {
     struct jpeg_compress_struct cinfo;
