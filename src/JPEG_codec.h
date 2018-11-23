@@ -41,4 +41,8 @@ template<typename T> int apply_mask(BitMap2D<> *bm, T *ps, int nc = 3, int line_
     return count;
 }
 
+const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
+    storage_manager &src,
+    void *buffer);
+
 #endif
