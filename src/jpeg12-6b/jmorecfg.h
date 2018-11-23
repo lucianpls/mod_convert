@@ -37,6 +37,7 @@
 #define progress_monitor        progress_monitor12
 #define jpeg_destination_mgr    jpeg_destination_mgr12
 #define init_destination        init_destination12
+#define jpeg_std_message_table  jpeg_std_message_table12
 
 #define BITS_IN_JSAMPLE  12	/* use 8 or 12 */
 #define NEED_12_BIT_NAMES
