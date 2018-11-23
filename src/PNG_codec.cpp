@@ -11,6 +11,7 @@
 // #include <png.h>
 #include "ahtse_util.h"
 #include <vector>
+#include <png.h>
 
 // TODO: Add palette PNG support, possibly other fancy options
 
@@ -133,9 +134,16 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
             PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 
         png_set_compression_level(pngp, params.compression_level);
+
         // Flag NDV as transparent color
-        if (params.has_transparency)
-            png_set_tRNS(pngp, infop, 0, 0, &params.NDV);
+        if (params.has_transparency) {
+            // TODO: Pass the transparent color via params.
+            // For now, 0 is the no data value, regardless of the type of data
+
+            png_color_16 tcolor;
+            memset(&tcolor, 0, sizeof(png_color_16));
+            png_set_tRNS(pngp, infop, 0, 0, &tcolor);
+        }
 
 #if defined(NEED_SWAP)
         if (params.bit_depth > 8)
@@ -165,7 +173,7 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
     return message;
 }
 
-int set_png_params(const TiledRaster &raster, png_params *params) {
+int set_def_png_params(const TiledRaster &raster, png_params *params) {
     // Pick some defaults
     // Only handles 8 or 16 bits
     memset(params, 0, sizeof(png_params));

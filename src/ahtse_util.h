@@ -13,9 +13,6 @@
 #include <apr_tables.h>
 #include <apr_pools.h>
 
-// Not sure how to get rid of this one
-#include <png.h>
-
 // Always include httpd.h before other http* headers
 // #include <httpd.h>
 // #include <http_config.h>
@@ -245,9 +242,8 @@ struct png_params : codec_params {
 
     // If true, NDV is the transparent color
     int has_transparency;
+    // TODO: Have a way to pass the transparent color when has_transparency is on
 
-    // If has_transparency is on, this is the transparent color definition
-    png_color_16 NDV;
 };
 
 // In PNG_codec.cpp
@@ -261,6 +257,6 @@ const char *png_stride_decode(codec_params &params, const TiledRaster &raster,
 const char *png_encode(png_params &params, const TiledRaster &raster,
     storage_manager &src, storage_manager &dst);
 // Based on the raster configuration, populates a png parameter structure
-int set_png_params(const TiledRaster &raster, png_params *params);
+int set_def_png_params(const TiledRaster &raster, png_params *params);
 
 #endif

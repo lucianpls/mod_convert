@@ -200,11 +200,11 @@ static int handler(request_rec *r)
         return sendImage(r, src, "image/jpeg");
 
     png_params out_params;
-    set_png_params(cfg->raster, &out_params);
+    set_def_png_params(cfg->raster, &out_params);
 
     // By default the NDV is zero, and the NVD field is zero
     // Check one more time that we had a Zen mask before turning the transparency on
-    if (params.line_stride != 0)
+    if (params.modified)
         out_params.has_transparency = true;
 
     storage_manager raw = {reinterpret_cast<char *>(buffer), pagesize};
