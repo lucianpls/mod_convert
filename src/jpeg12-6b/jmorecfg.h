@@ -177,7 +177,7 @@ typedef short INT16;
 /* INT32 must hold at least signed 32-bit values. */
 
 #ifndef XMD_H			/* X11/xmd.h correctly defines INT32 */
-#ifndef _BASETDS_H_             /* Defined by Microsoft*/
+#ifndef _BASETSD_H_             /* Defined by Microsoft*/
 #ifndef _BASETSD_H
 #define INT32_IS_ACTUALLY_LONG
 typedef long INT32;
