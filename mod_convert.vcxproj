@@ -100,6 +100,10 @@
     <PostBuildEvent>
       <Command>copy /y $(OutDir)$(TargetName)$(TargetExt) \Apache24\modules</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>cd $(ProjectDir)src\jpeg12-6b
+nmake /f Makefile.vc libjpeg.lib</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

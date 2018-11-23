@@ -2,6 +2,7 @@
 #define JPEG_CODEC_H
 
 #include "BitMask2D.h"
+#include <setjmp.h>
 
 // Could be used for short int, so make it a template
 template<typename T> int apply_mask(BitMap2D<> *bm, T *ps, int nc = 3, int line_stride = 0) {
