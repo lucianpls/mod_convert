@@ -133,7 +133,8 @@ DOBJECTS= djpeg.$(O) wrppm.$(O) wrgif.$(O) wrtarga.$(O) wrrle.$(O) \
 TROBJECTS= jpegtran.$(O) rdswitch.$(O) cdjpeg.$(O) transupp.$(O)
 
 
-all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
+all:  libjpeg.$(A)
+# all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 
 # Special compilation rules to support ansi2knr and libtool.
 .SUFFIXES: .lo .la
