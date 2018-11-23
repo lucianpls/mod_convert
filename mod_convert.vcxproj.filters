@@ -23,6 +23,9 @@
     <ClInclude Include="src\BitMask2D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\JPEG_codec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mod_convert.cpp">
@@ -38,6 +41,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Packer_RLE.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JPEG8.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JPEG12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

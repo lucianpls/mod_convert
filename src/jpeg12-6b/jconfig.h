@@ -1,6 +1,8 @@
-/* jconfig.h.  Generated automatically by configure.  */
-/* jconfig.cfg --- source file edited by configure script */
-/* see jconfig.doc for explanations */
+/* jconfig.h. Linux version, modified for Windows too  */
+
+#if defined(_WIN32)
+#include "jconfig.vc"
+#else
 
 #define HAVE_PROTOTYPES 
 #define HAVE_UNSIGNED_CHAR 
@@ -43,3 +45,4 @@
 #undef PROGRESS_REPORT
 
 #endif /* JPEG_CJPEG_DJPEG */
+#endif /* non WIN32 */
