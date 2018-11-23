@@ -124,10 +124,15 @@ const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
     storage_manager &src,
     void *buffer)
 {
-    char *rp[2]; // Two lines at a time
+    JSAMPLE *rp[2]; // Two lines at a time
     static_assert(sizeof(params.error_message) >= JMSG_LENGTH_MAX,
         "Message buffer too small");
     params.error_message[0] = 0; // Clear errors
+
+    if (GTDGetSize(raster.datatype) != 1) {
+        sprintf(params.error_message, "JPEG8 decode called with wrong datatype");
+        return params.error_message;
+    }
 
     jpeg_decompress_struct cinfo;
     JPGHandle jh;
@@ -181,8 +186,9 @@ const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
         cinfo.out_color_space = (raster.pagesize.c == 3) ? JCS_RGB : JCS_GRAYSCALE;
         jpeg_start_decompress(&cinfo);
         while (cinfo.output_scanline < cinfo.image_height) {
-            rp[0] = (char *)buffer + params.line_stride * cinfo.output_scanline;
-            rp[1] = rp[0] + params.line_stride;
+            // Do the math in bytes, because line_stride is in bytes
+            rp[0] = (JSAMPROW)((char *)buffer + params.line_stride * cinfo.output_scanline);
+            rp[1] = (JSAMPROW)((char *)buffer + params.line_stride * (cinfo.output_scanline + 1));
             jpeg_read_scanlines(&cinfo, JSAMPARRAY(rp), 2);
         }
 
@@ -215,7 +221,7 @@ const char *jpeg8_stride_decode(codec_params &params, const TiledRaster &raster,
         }
 
         params.modified = apply_mask(&bm,
-            reinterpret_cast<unsigned char *>(buffer),
+            reinterpret_cast<JSAMPROW>(buffer),
             static_cast<int>(raster.pagesize.c),
             static_cast<int>(params.line_stride));
     }
@@ -232,7 +238,7 @@ const char *jpeg8_encode(jpeg_params &params, const TiledRaster &raster, storage
     JPGHandle jh;
     jpeg_destination_mgr mgr;
     int linesize;
-    char *rp[2];
+    JSAMPLE *rp[2];
 
     memset(&jh, 0, sizeof(jh));
 
@@ -269,8 +275,9 @@ const char *jpeg8_encode(jpeg_params &params, const TiledRaster &raster, storage
     linesize = cinfo.image_width * cinfo.num_components;
 
     jpeg_start_compress(&cinfo, TRUE);
+    const JSAMPROW rowbuffer = reinterpret_cast<JSAMPROW>(src.buffer);
     while (cinfo.next_scanline != cinfo.image_height) {
-        rp[0] = src.buffer + linesize * cinfo.next_scanline;
+        rp[0] = rowbuffer + linesize * cinfo.next_scanline;
         rp[1] = rp[0] + linesize;
         jpeg_write_scanlines(&cinfo, JSAMPARRAY(rp), 2);
     }
