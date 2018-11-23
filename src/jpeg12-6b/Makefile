@@ -5,6 +5,8 @@
 
 # Read installation instructions before saying "make" !!
 
+include ../Makefile.lcl
+
 # For compiling with source and object files in different directories.
 srcdir = .
 
@@ -23,11 +25,11 @@ mandir = $(prefix)/man/man$(manext)
 CC= gcc
 
 # You may need to adjust these cc options:
-CFLAGS= -O2  -I$(srcdir)
+CFLAGS= -O2 -fPIC -Wall $(DEBUG) -I$(srcdir)
 # Generally, we recommend defining any configuration symbols in jconfig.h,
 # NOT via -D switches here.
 # However, any special defines for ansi2knr.c may be included here:
-ANSI2KNRFLAGS= 
+# ANSI2KNRFLAGS= 
 
 # Link-time cc options:
 LDFLAGS= 
@@ -82,7 +84,7 @@ LIBSOURCES= jcapimin.c jcapistd.c jccoefct.c jccolor.c jcdctmgr.c jchuff.c \
         jfdctint.c jidctflt.c jidctfst.c jidctint.c jidctred.c jquant1.c \
         jquant2.c jutils.c jmemmgr.c
 # memmgr back ends: compile only one of these into a working library
-SYSDEPSOURCES= jmemansi.c jmemname.c jmemnobs.c jmemdos.c jmemmac.c
+SYSDEPSOURCES= jmemnobs.c
 # source files: cjpeg/djpeg/jpegtran applications, also rdjpgcom/wrjpgcom
 APPSOURCES= cjpeg.c djpeg.c jpegtran.c rdjpgcom.c wrjpgcom.c cdjpeg.c \
         rdcolmap.c rdswitch.c transupp.c rdppm.c wrppm.c rdgif.c wrgif.c \

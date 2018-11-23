@@ -1,10 +1,10 @@
 MODULE = mod_convert
 TARGET = .libs/$(MODULE).so
 
-C_SRC = $(MODULE).cpp ahtse_util.cpp JPEG_codec.cpp PNG_codec.cpp Packer_RLE.cpp
+C_SRC = $(MODULE).cpp ahtse_util.cpp JPEG_codec.cpp PNG_codec.cpp Packer_RLE.cpp JPEG8.cpp JPEG12.cpp
 HEADERS = ahtse_util.h BitMask2D.h
 
-OBJECTS = $(C_SRC:.cpp=.lo)
+OBJECTS = $(C_SRC:.cpp=.lo) libjpeg12.a
 
 CXXFLAGS = -prefer-pic -O2 -Wall
 
@@ -30,9 +30,14 @@ $(TARGET)	:	$(OBJECTS)
 %.lo	:	%.cpp
 	$(LIBTOOL) --mode=compile g++ -std=c++0x $(CXXFLAGS) $(DEFINES) $(INCLUDES) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
 
+libjpeg12.a	:	jpeg12-6b/libjpeg12.a
+	cp	$^ $@
+
+jpeg12-6b/libjpeg12.a	:
+	$(MAKE) -C jpeg12-6b
+
 install	:	$(TARGET)
 	$(SUDO)	cp $(TARGET)	$(DEST)
 
 clean	:
-	rm -rf .libs *.o *.lo *.slo *.la
-
+	rm -rf $(TARGET) $(OBJECTS) .libs *.o *.lo *.slo *.la jpeg12-6b/*.o jpeg12-6b/libjpeg12.a

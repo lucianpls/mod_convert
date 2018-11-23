@@ -49,8 +49,10 @@
 #undef void
 #undef const
 #undef CHAR_IS_UNSIGNED
-#define HAVE_STDDEF_H 
-#define HAVE_STDLIB_H 
+#define HAVE_STDDEF_H
+#ifndef HAVE_STDLIB_H
+#define HAVE_STDLIB_H
+#endif
 #undef NEED_BSD_STRINGS
 #undef NEED_SYS_TYPES_H
 #undef NEED_FAR_POINTERS
