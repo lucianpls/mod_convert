@@ -133,7 +133,7 @@ DOBJECTS= djpeg.$(O) wrppm.$(O) wrgif.$(O) wrtarga.$(O) wrrle.$(O) \
 TROBJECTS= jpegtran.$(O) rdswitch.$(O) cdjpeg.$(O) transupp.$(O)
 
 
-all:  libjpeg.$(A)
+all:  libjpeg12.$(A)
 # all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 
 # Special compilation rules to support ansi2knr and libtool.
@@ -155,95 +155,24 @@ all:  libjpeg.$(A)
 # 	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) -c knr/$*.c
 # 	$(RM) knr/$*.c
 
-ansi2knr: ansi2knr.c
-	$(CC) $(CFLAGS) $(ANSI2KNRFLAGS) -o ansi2knr $(srcdir)/ansi2knr.c
-	$(MKDIR) knr
-
 # the library:
 
 # without libtool:
-libjpeg.a:  $(LIBOBJECTS)
-	$(RM) libjpeg.a
-	$(AR) libjpeg.a  $(LIBOBJECTS)
-	$(AR2) libjpeg.a
+libjpeg12.a:  $(LIBOBJECTS)
+	$(RM) libjpeg12.a
+	$(AR) libjpeg12.a  $(LIBOBJECTS)
+	$(AR2) libjpeg12.a
 
 # with libtool:
-libjpeg.la:  $(LIBOBJECTS)
-	$(LIBTOOL) --mode=link $(CC) -o libjpeg.la $(LIBOBJECTS) \
+libjpeg12.la:  $(LIBOBJECTS)
+	$(LIBTOOL) --mode=link $(CC) -o libjpeg12.la $(LIBOBJECTS) \
 		-rpath $(libdir) -version-info $(JPEG_LIB_VERSION)
-
-# sample programs:
-
-cjpeg: $(COBJECTS) libjpeg.$(A)
-	$(LN) $(LDFLAGS) -o cjpeg $(COBJECTS) libjpeg.$(A) $(LDLIBS)
-
-djpeg: $(DOBJECTS) libjpeg.$(A)
-	$(LN) $(LDFLAGS) -o djpeg $(DOBJECTS) libjpeg.$(A) $(LDLIBS)
-
-jpegtran: $(TROBJECTS) libjpeg.$(A)
-	$(LN) $(LDFLAGS) -o jpegtran $(TROBJECTS) libjpeg.$(A) $(LDLIBS)
-
-rdjpgcom: rdjpgcom.$(O)
-	$(LN) $(LDFLAGS) -o rdjpgcom rdjpgcom.$(O) $(LDLIBS)
-
-wrjpgcom: wrjpgcom.$(O)
-	$(LN) $(LDFLAGS) -o wrjpgcom wrjpgcom.$(O) $(LDLIBS)
-
-# Installation rules:
-
-install: cjpeg djpeg jpegtran rdjpgcom wrjpgcom 
-	$(INSTALL_PROGRAM) cjpeg $(bindir)/$(binprefix)cjpeg
-	$(INSTALL_PROGRAM) djpeg $(bindir)/$(binprefix)djpeg
-	$(INSTALL_PROGRAM) jpegtran $(bindir)/$(binprefix)jpegtran
-	$(INSTALL_PROGRAM) rdjpgcom $(bindir)/$(binprefix)rdjpgcom
-	$(INSTALL_PROGRAM) wrjpgcom $(bindir)/$(binprefix)wrjpgcom
-	$(INSTALL_DATA) $(srcdir)/cjpeg.1 $(mandir)/$(manprefix)cjpeg.$(manext)
-	$(INSTALL_DATA) $(srcdir)/djpeg.1 $(mandir)/$(manprefix)djpeg.$(manext)
-	$(INSTALL_DATA) $(srcdir)/jpegtran.1 $(mandir)/$(manprefix)jpegtran.$(manext)
-	$(INSTALL_DATA) $(srcdir)/rdjpgcom.1 $(mandir)/$(manprefix)rdjpgcom.$(manext)
-	$(INSTALL_DATA) $(srcdir)/wrjpgcom.1 $(mandir)/$(manprefix)wrjpgcom.$(manext)
-
-install-lib: libjpeg.$(A) install-headers
-	$(INSTALL_LIB) libjpeg.$(A) $(libdir)/$(binprefix)libjpeg.$(A)
-
-install-headers: jconfig.h
-	$(INSTALL_DATA) jconfig.h $(includedir)/jconfig.h
-	$(INSTALL_DATA) $(srcdir)/jpeglib.h $(includedir)/jpeglib.h
-	$(INSTALL_DATA) $(srcdir)/jmorecfg.h $(includedir)/jmorecfg.h
-	$(INSTALL_DATA) $(srcdir)/jerror.h $(includedir)/jerror.h
 
 clean:
 	$(RM) *.o *.lo libjpeg.a libjpeg.la
 	$(RM) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	$(RM) ansi2knr core testout* config.log config.status
 	$(RM) -r knr .libs _libs
-
-distclean: clean
-	$(RM) Makefile jconfig.h libtool config.cache
-
-test: cjpeg djpeg jpegtran
-	$(RM) testout*
-	./djpeg -dct int -ppm -outfile testout.ppm  $(srcdir)/testorig.jpg
-	./djpeg -dct int -bmp -colors 256 -outfile testout.bmp  $(srcdir)/testorig.jpg
-	./cjpeg -dct int -outfile testout.jpg  $(srcdir)/testimg.ppm
-	./djpeg -dct int -ppm -outfile testoutp.ppm $(srcdir)/testprog.jpg
-	./cjpeg -dct int -progressive -opt -outfile testoutp.jpg $(srcdir)/testimg.ppm
-	./jpegtran -outfile testoutt.jpg $(srcdir)/testprog.jpg
-	cmp $(srcdir)/testimg.ppm testout.ppm
-	cmp $(srcdir)/testimg.bmp testout.bmp
-	cmp $(srcdir)/testimg.jpg testout.jpg
-	cmp $(srcdir)/testimg.ppm testoutp.ppm
-	cmp $(srcdir)/testimgp.jpg testoutp.jpg
-	cmp $(srcdir)/testorig.jpg testoutt.jpg
-
-check: test
-
-# Mistake catcher:
-
-jconfig.h: jconfig.doc
-	echo You must prepare a system-dependent jconfig.h file.
-	echo Please read the installation directions in install.doc.
-	exit 1
 
 # GNU Make likes to know which target names are not really files to be made:
 .PHONY: all install install-lib install-headers clean distclean test check
