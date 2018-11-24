@@ -12,8 +12,8 @@
 // Look for the JPEG precision, also check a couple of major structural issues
 static int get_precision(storage_manager &src)
 {
-    const char *buffer = src.buffer;
-    const char *sentinel = src.buffer + src.size;
+    const unsigned char *buffer = reinterpret_cast<unsigned char *>(src.buffer);
+    const unsigned char *sentinel = buffer + src.size;
     if (*buffer != 0xff || buffer[1] != 0xd8)
         return -1; // Error, SOI header not found
     buffer += 2;
@@ -34,7 +34,9 @@ static int get_precision(storage_manager &src)
         }
 
         switch (*buffer++) {
-        case 0xc0: // SOF0, which includes the size and precision
+        case 0xc0: // SOF0, baseline which includes the size and precision
+        case 0xc1: // SOF1, also baseline
+
             // Precision is the byte right after the size
             if (buffer + 3 >= sentinel)
                 return -1; // Error in JPEG
