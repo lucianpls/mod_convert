@@ -2,7 +2,10 @@
 
 An AHTSE component (apache httpd module) to convert tile image formats
 
-**NOT YET OPERATIONAL**
+
+# Status
+
+Only implicit conversion from JPEG w/Zen (8 or 12bit) to JPEG or PNG is supported currently
 
 # Building
 
@@ -31,6 +34,9 @@ The source_configuration should be the name of the file describing the AHTSE til
 
 ## SkippedLevels N
 - Optional, defaults to 0.  How many levels at the top of the overview pyramid are not counted
+
+## DataType Type
+- Optional, defaults to Byte.  JPEG and PNG support Byte and UInt16
 
 # Directives that appear in the main configuration only
 
