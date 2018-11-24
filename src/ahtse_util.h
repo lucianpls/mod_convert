@@ -94,7 +94,7 @@ typedef enum {
 } GDALDataType;
 
 // Size in bytes
-int GTDGetSize(GDALDataType dt);
+int GDTGetSize(GDALDataType dt);
 
 // Separate channels and level, just in case
 struct sz {

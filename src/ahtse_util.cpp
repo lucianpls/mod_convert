@@ -38,7 +38,7 @@ GDALDataType getDT(const char *name)
         return GDT_Byte;
 }
 
-int GTDGetSize(GDALDataType dt) {
+int GDTGetSize(GDALDataType dt) {
     // It is not a multimap, so it doesn't take synonyms
     static const std::unordered_map<GDALDataType, int> size_by_gdt = {
         {GDT_Unknown, -1},

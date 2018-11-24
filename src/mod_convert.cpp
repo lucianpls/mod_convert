@@ -176,7 +176,7 @@ static int handler(request_rec *r)
 
     codec_params params;
     memset(&params, 0, sizeof(params));
-    int pixel_size = GTDGetSize(cfg->inraster.datatype);
+    int pixel_size = GDTGetSize(cfg->inraster.datatype);
     int input_line_width = static_cast<int>(cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
     int pagesize = static_cast<int>(input_line_width * cfg->inraster.pagesize.y);
     params.line_stride = input_line_width;

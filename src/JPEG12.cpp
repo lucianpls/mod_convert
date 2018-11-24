@@ -129,7 +129,7 @@ const char *jpeg12_stride_decode(codec_params &params, const TiledRaster &raster
         "Message buffer too small");
     params.error_message[0] = 0; // Clear errors
 
-    if (GTDGetSize(raster.datatype) != 2) {
+    if (GDTGetSize(raster.datatype) != 2) {
         sprintf(params.error_message, "JPEG12 decode called with wrong datatype");
         return params.error_message;
     }
