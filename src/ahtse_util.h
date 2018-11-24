@@ -40,6 +40,9 @@
 
 #else // Little endian
 
+// For formats that need net order
+#define NEED_SWAP
+
 #define PNG_SIG  0x474e5089
 #define JPEG_SIG 0xe0ffd8ff
 #define LERC_SIG 0x5a746e43
