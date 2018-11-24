@@ -21,7 +21,11 @@ static int get_precision(storage_manager &src)
     while (buffer < sentinel) {
         int sz;
         if (*buffer++ != 0xff)
-            continue; // Skip non-chunks
+            continue; // Skip non-markers, in case padding exists
+
+        // Make sure we can read another byte
+        if (buffer >= sentinel)
+            return -1;
 
         // Flags with no size, RST, EOI, TEM and valid ff byte
         if (((*buffer & 0xf8) == 0xd0) || (*buffer == 0xd9) || (*buffer <= 1)) {
@@ -30,7 +34,7 @@ static int get_precision(storage_manager &src)
         }
 
         switch (*buffer++) {
-        case 0xc0: // SOF0, the one that encodes the precision
+        case 0xc0: // SOF0, which includes the size and precision
             // Precision is the byte right after the size
             if (buffer + 3 >= sentinel)
                 return -1; // Error in JPEG
@@ -39,10 +43,24 @@ static int get_precision(storage_manager &src)
                 return -1;
             return sz; // Normal exit, found the precision
 
-        case 0xda: // start of scan this is an error, SOI should be before this
+            // The precision is followed by y size and x size, each two bytes
+            // in big endian order
+            // Then comes 1 byte, number of components
+            // Then 3 bytes per component
+            // Byte 1, type
+            //  1 - Y, 2 - Cb, 3 - Cr, 4 - I, 5 Q
+            // Byte 2, sampling factors
+            //  Bits 0-3 vertical, 4-7 horizontal
+            // Byte 3, Which quantization table to use
+
+        case 0xda:
+            // Reaching the start of scan without finding the frame 0 is an error
             return -1;
 
         default: // Normal segments with size, safe to skip
+            if (buffer + 2 >= sentinel)
+                return -1;
+
             sz = (static_cast<int>(*buffer) << 8) | buffer[1];
             buffer += sz;
         }
