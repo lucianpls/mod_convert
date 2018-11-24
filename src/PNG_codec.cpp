@@ -78,7 +78,7 @@ const char *png_stride_decode(codec_params &params,
             throw "Input PNG has the wrong size";
 
         if (png_get_rowbytes(pngp, infop) != params.line_stride)
-            throw "Wrong type of data in PNG encode";
+            throw "Wrong type of data in PNG decode";
 
 #if defined(NEED_SWAP)
         if (bit_depth > 8)
@@ -145,6 +145,8 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
             png_set_tRNS(pngp, infop, 0, 0, &tcolor);
         }
 
+        png_write_info(pngp, infop);
+
 #if defined(NEED_SWAP)
         if (params.bit_depth > 8)
             png_set_swap(pngp);
@@ -152,9 +154,8 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
 
         int rowbytes = png_get_rowbytes(pngp, infop);
         for (size_t i = 0; i < png_rowp.size(); i++)
-            png_rowp[i] = reinterpret_cast<png_bytep>(src.buffer + i*rowbytes);
+            png_rowp[i] = reinterpret_cast<png_bytep>(src.buffer + i * rowbytes);
 
-        png_write_info(pngp, infop);
         png_write_image(pngp, png_rowp.data());
         png_write_end(pngp, infop);
     }
