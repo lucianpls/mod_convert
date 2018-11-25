@@ -166,7 +166,7 @@ static int handler(request_rec *r)
     ap_destroy_sub_req(sr);
     if (rr_status != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_NOTICE, rr_status, r,
-            "Receive failed with code %pm for %s", rr_status, sub_uri);
+            "Receive failed with code %d for %s", rr_status, sub_uri);
         return sendEmptyTile(r, cfg->empty);
     }
 
