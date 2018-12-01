@@ -388,3 +388,9 @@ int sendEmptyTile(request_rec *r, const empty_conf_t &empty) {
     apr_table_setn(r->headers_out, "ETag", empty.eTag);
     return sendImage(r, empty.empty);
 }
+
+int get_bool(const char *s) {
+    while (*s != 0 && (*s == ' ' || *s == '\t'))
+        s++;
+    return (!ap_cstr_casecmp(s, "On") || !ap_cstr_casecmp(s, "1"));
+}

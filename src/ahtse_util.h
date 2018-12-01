@@ -265,4 +265,7 @@ const char *png_encode(png_params &params, const TiledRaster &raster,
 // Based on the raster configuration, populates a png parameter structure
 int set_def_png_params(const TiledRaster &raster, png_params *params);
 
+// Skip the white space and look for "On" or "1", otherwise it returns false
+int get_bool(const char *s);
+
 #endif

@@ -34,6 +34,8 @@ APLOG_USE_MODULE(convert);
 #define DEFAULT_INPUT_SIZE (1024 * 1024)
 
 struct convert_conf {
+    // Set if this module is to be used from indirect (not external) requests?
+    int indirect;
     // array of guard regexp pointers, one of them has to match
     apr_array_header_t *arr_rxp;
 
@@ -263,16 +265,19 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
         return "SourcePath missing";
     c->source = apr_pstrdup(cmd->pool, line);
 
+    if (nullptr != (line = apr_table_get(kvp, "SourcePostfix")))
+        c->postfix = apr_pstrdup(cmd->pool, line);
+
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
         && nullptr != (err_message = readFile(cmd->pool, c->raster.missing.empty, line)))
             return err_message;
 
+    if (nullptr != (line = apr_table_get(kvp, "Indirect")))
+        c->indirect = get_bool(line + strlen("Indirect"));
+
     line = apr_table_get(kvp, "InputBufferSize");
     c->max_input_size = (line == nullptr) ? DEFAULT_INPUT_SIZE :
         static_cast<apr_size_t>(apr_strtoi64(line, NULL, 0));
-
-    if (nullptr != (line = apr_table_get(kvp, "SourcePostfix")))
-        c->postfix = apr_pstrdup(cmd->pool, line);
 
     return nullptr;
 }
