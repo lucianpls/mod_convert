@@ -83,6 +83,10 @@ static int handler(request_rec *r)
     convert_conf *cfg = reinterpret_cast<convert_conf *>(
         ap_get_module_config(r->per_dir_config, &convert_module));
 
+    // If indirect is set, only activate on subrequests
+    if (cfg->indirect && r->main == NULL)
+        return DECLINED;
+
     if (nullptr == cfg || nullptr == cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
         return DECLINED;
 
@@ -272,9 +276,6 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
         && nullptr != (err_message = readFile(cmd->pool, c->raster.missing.empty, line)))
             return err_message;
 
-    if (nullptr != (line = apr_table_get(kvp, "Indirect")))
-        c->indirect = get_bool(line + strlen("Indirect"));
-
     line = apr_table_get(kvp, "InputBufferSize");
     c->max_input_size = (line == nullptr) ? DEFAULT_INPUT_SIZE :
         static_cast<apr_size_t>(apr_strtoi64(line, NULL, 0));
@@ -302,6 +303,12 @@ static const command_rec cmds[] =
         0, // user_data
         ACCESS_CONF, // availability
         "Regular expression for triggering mod_convert"),
+    AP_INIT_FLAG(
+        "Convert_Indirect",
+        (cmd_func) ap_set_flag_slot,
+        (void *)APR_OFFSETOF(convert_conf, indirect),
+        ACCESS_CONF,
+        "If set, only respond to subrequest"),
     { NULL }
 };
 

@@ -15,14 +15,16 @@ For the Windows VS solution, the headers are expected to be in the zlib, png and
 
 # Usage
 
-Implements two apache httpd configuration directives:
+Implements three apache httpd configuration directives:
 
 ## Convert_RegExp pattern
 Can be used more than once, a request has to match at least one of the patterns before it is considered a mod_convert request
 
 ## Convert_ConfigurationFiles source_configuration main_configuration
-
 The source_configuration should be the name of the file describing the AHTSE tile data source.  The main_configurtion contains directives controlling the output of the mod_convert.
+
+## Convert_Indirect On
+If set, the AHTSE convert module will not respond to normal requests, only to internal subrequests
 
 # AHTSE directives that can appear both the source and the main configuration
 
