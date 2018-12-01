@@ -173,6 +173,10 @@ static int handler(request_rec *r)
         return sendEmptyTile(r, cfg->raster.missing);
     }
 
+    // If the input tile is the empty tile, send the output empty tile right now
+    if (ETag != nullptr && !ap_cstr_casecmp(ETag, cfg->inraster.missing.eTag))
+        return sendEmptyTile(r, cfg->raster.missing);
+
     // What format is the source, and what is the compression we want?
     apr_uint32_t in_format;
     memcpy(&in_format, rctx.buffer, 4);
