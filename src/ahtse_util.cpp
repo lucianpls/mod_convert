@@ -182,6 +182,14 @@ const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, TiledRaster &raster
         && nullptr != (err_message = getBBox(line, raster.bbox)))
             return apr_pstrcat(pool, "BoundingBox ", err_message, NULL);
 
+    if (nullptr != (line = apr_table_get(kvp, "ETagSeed"))) {
+        // Ignore the flag when reading in the seed
+        int flag;
+        raster.seed = base32decode(line, &flag);
+        // Set the missing tile etag, with the flag set because it is the empty tile etag
+        tobase32(raster.seed, raster.missing.eTag, 1);
+    }
+
     init_rsets(pool, raster);
 
     return nullptr;

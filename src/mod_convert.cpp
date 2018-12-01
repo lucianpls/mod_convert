@@ -45,10 +45,6 @@ struct convert_conf {
     // append this to the end of request url to the input
     char *postfix;
 
-    apr_uint64_t seed;
-    // The empty tile and the empty etag
-    empty_conf_t empty;
-
     // the maximum size of an input tile
     apr_size_t max_input_size;
 
@@ -70,6 +66,12 @@ static unordered_map<const char *, img_fmt> formats = {
 };
 
 #define USER_AGENT "AHTSE Convert"
+
+static int convert_dt(request_rec *r, void *buffer) {
+    // Not yet implemented
+    return HTTP_INTERNAL_SERVER_ERROR;
+}
+
 static int handler(request_rec *r)
 {
     const char *message;
@@ -104,7 +106,7 @@ static int handler(request_rec *r)
 
     // But we still need to check the results
     if (tile.x < 0 || tile.y < 0 || tile.l < 0)
-        return sendEmptyTile(r, cfg->empty);
+        return sendEmptyTile(r, cfg->raster.missing);
 
     // Adjust the level to the full pyramid one
     tile.l += cfg->raster.skip;
@@ -113,13 +115,13 @@ static int handler(request_rec *r)
     if (tile.l >= cfg->raster.n_levels ||
         tile.x >= cfg->raster.rsets[tile.l].w ||
         tile.y >= cfg->raster.rsets[tile.l].h)
-        return sendEmptyTile(r, cfg->empty);
+        return sendEmptyTile(r, cfg->raster.missing);
 
     // Same is true for outside of input bounds
     if (tile.l >= cfg->inraster.n_levels ||
         tile.x >= cfg->inraster.rsets[tile.l].w ||
         tile.y >= cfg->inraster.rsets[tile.l].w)
-        return sendEmptyTile(r, cfg->empty);
+        return sendEmptyTile(r, cfg->raster.missing);
 
     // Convert to input level
     tile.l -= cfg->inraster.skip;
@@ -163,11 +165,12 @@ static int handler(request_rec *r)
     const char *ETag = apr_table_get(sr->headers_out, "ETag");
     if (ETag != nullptr)
         ETag = apr_pstrdup(r->pool, ETag);
+
     ap_destroy_sub_req(sr);
     if (rr_status != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_NOTICE, rr_status, r,
             "Receive failed with code %d for %s", rr_status, sub_uri);
-        return sendEmptyTile(r, cfg->empty);
+        return sendEmptyTile(r, cfg->raster.missing);
     }
 
     // What format is the source, and what is the compression we want?
@@ -194,6 +197,10 @@ static int handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
         return HTTP_NOT_FOUND;
     }
+
+    // If datatype conversion is needed, branch to that part
+    //if (cfg->inraster.datatype != cfg->raster.datatype)
+    //    return convert_dt(r, buffer);
 
     // This part is only for converting Zen JPEGs to JPNG, as needed
     if (JPEG_SIG == in_format && params.modified == 0) // Zen mask absent or superfluous
@@ -252,16 +259,8 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
         return "SourcePath missing";
     c->source = apr_pstrdup(cmd->pool, line);
 
-    // Optional fields for convert
-    int flag;
-    line = apr_table_get(kvp, "ETagSeed");
-    // Ignore the flag in the seed
-    c->seed = line == nullptr ? 0 : base32decode(line, &flag);
-    // Set the missing tile etag, with the flag set because it is the empty tile etag
-    tobase32(c->seed, c->empty.eTag, 1);
-
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
-        && nullptr != (err_message = readFile(cmd->pool, c->empty.empty, line)))
+        && nullptr != (err_message = readFile(cmd->pool, c->raster.missing.empty, line)))
             return err_message;
 
     line = apr_table_get(kvp, "InputBufferSize");

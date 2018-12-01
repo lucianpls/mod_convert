@@ -108,6 +108,18 @@ struct bbox_t {
     double xmin, ymin, xmax, ymax;
 };
 
+typedef struct {
+    char *buffer;
+    int size;
+} storage_manager;
+
+struct empty_conf_t {
+    // Empty tile in RAM, if defined
+    storage_manager empty;
+    // Buffer for the empty tile etag
+    char eTag[16];
+};
+
 struct TiledRaster {
     // Size and pagesize of the raster
     struct sz size, pagesize;
@@ -121,8 +133,12 @@ struct TiledRaster {
 
     // geographical projection
     const char *projection;
-
     struct bbox_t bbox;
+
+    // ETag initializer
+    apr_uint64_t seed;
+    // The Empty tile etag in string form, derived from seed
+    empty_conf_t missing;
 };
 
 struct rset {
@@ -130,19 +146,6 @@ struct rset {
     double rx, ry;
     // In tiles
     int w, h;
-};
-
-typedef struct {
-    char *buffer;
-    int size;
-} storage_manager;
-
-struct empty_conf_t {
-    // Buffer for the empty tile etag
-    char eTag[16];
-
-    // Empty tile in RAM, if defined
-    storage_manager empty;
 };
 
 // Return a GDAL data type by name
