@@ -40,6 +40,21 @@ If set, the AHTSE convert module will not respond to normal requests, only to in
 ## DataType Type
 - Optional, defaults to Byte.  JPEG and PNG support Byte and UInt16
 
+## EmptyTile size offset filename
+- Optional, the file which is sent as the default (missing) tile.  When present, filename is required.  Offset defaults to 0 and size defaults to the size of the file.  If this directive is not present, a missing tile request will result in a HTTP not found (400) error.
+
+## ETagSeed value
+- Optional, a base 32 encoded 64bit value, used as a seed for ETag generation.  Defaults to 0
+
+## NoDataValue value
+- Optional, the value of the nodata pixels, single numerical value, C style double
+
+## MinValue value
+- Optional, the minimum value of the pixels, single numerical value, C style double
+
+## MaxValue value
+- Optional, the maximum value of the pixels, single numerical value, C style double
+
 # Directives that appear in the main configuration only
 
 ## SourcePath path
@@ -47,9 +62,3 @@ If set, the AHTSE convert module will not respond to normal requests, only to in
 
 ## SourcePostfix string
 - Optional, a constant string literal that is appended to each request to the source
-
-## EmptyTile size offset filename
-- Optional, the file which is sent as the default (missing) tile.  When present, filename is required.  Offset defaults to 0 and size defaults to the size of the file.  If this directive is not present, a missing tile request will result in a HTTP not found (400) error.
-
-## ETagSeed value
-- Optional, a base 32 encoded 64bit value, used as a seed for ETag generation.  Defaults to 0
