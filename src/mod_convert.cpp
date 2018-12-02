@@ -69,11 +69,6 @@ static unordered_map<const char *, img_fmt> formats = {
 
 #define USER_AGENT "AHTSE Convert"
 
-static int convert_dt(request_rec *r, void *buffer) {
-    // Not yet implemented
-    return HTTP_INTERNAL_SERVER_ERROR;
-}
-
 static int handler(request_rec *r)
 {
     const char *message;
@@ -84,7 +79,7 @@ static int handler(request_rec *r)
         ap_get_module_config(r->per_dir_config, &convert_module));
 
     // If indirect is set, only activate on subrequests
-    if (cfg->indirect && r->main == NULL)
+    if (cfg->indirect && r->main == nullptr)
         return DECLINED;
 
     if (nullptr == cfg || nullptr == cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
@@ -302,13 +297,15 @@ static const command_rec cmds[] =
         (cmd_func) set_regexp,
         0, // user_data
         ACCESS_CONF, // availability
-        "Regular expression for triggering mod_convert"),
+        "Regular expression for triggering mod_convert"
+    ),
     AP_INIT_FLAG(
         "Convert_Indirect",
         (cmd_func) ap_set_flag_slot,
         (void *)APR_OFFSETOF(convert_conf, indirect),
         ACCESS_CONF,
-        "If set, only respond to subrequest"),
+        "If set, the module does not respond to external requests, only to internal redirects"
+    ),
     { NULL }
 };
 
