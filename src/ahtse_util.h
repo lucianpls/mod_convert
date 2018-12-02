@@ -123,10 +123,15 @@ struct empty_conf_t {
 struct TiledRaster {
     // Size and pagesize of the raster
     struct sz size, pagesize;
-    // width and height for each pyramid level
-    struct rset *rsets;
+
+    // Generic data values
+    double ndv, min, max;
+    int has_ndv, has_min, has_max;
+
     // how many levels from full size, computed
     int n_levels;
+    // width and height for each pyramid level
+    struct rset *rsets;
     // How many levels to skip at the top of the pyramid
     int skip;
     GDALDataType datatype;

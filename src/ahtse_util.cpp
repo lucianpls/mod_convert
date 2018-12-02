@@ -148,6 +148,19 @@ static void init_rsets(apr_pool_t *pool, TiledRaster &raster) {
     ap_assert(raster.n_levels > raster.skip);
 }
 
+static double get_value(const char *s, int *has) {
+    double value = 0.0;
+    *has = 0;
+    if (s != nullptr && *s != 0) {
+        *has = 1;
+        const char *lcl = setlocale(LC_NUMERIC, nullptr);
+        setlocale(LC_NUMERIC, "C");
+        value = strtod(s, nullptr);
+        setlocale(LC_NUMERIC, lcl);
+    }
+    return value;
+}
+
 // Initialize a raster from a kvp table
 const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, TiledRaster &raster)
 {
@@ -175,6 +188,15 @@ const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, TiledRaster &raster
 
     if (nullptr != (line = apr_table_get(kvp, "Projection")))
         raster.projection = line ? apr_pstrdup(pool, line) : "WM";
+
+    if (nullptr != (line = apr_table_get(kvp, "NoDataValue")))
+        raster.ndv = get_value(line, &raster.has_ndv);
+
+    if (nullptr != (line = apr_table_get(kvp, "MinValue")))
+        raster.min = get_value(line, &raster.has_min);
+
+    if (nullptr != (line = apr_table_get(kvp, "MaxValue")))
+        raster.max = get_value(line, &raster.has_max);
 
     raster.bbox.xmin = raster.bbox.ymin = 0.0;
     raster.bbox.xmax = raster.bbox.ymax = 1.0;
