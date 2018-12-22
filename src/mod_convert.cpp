@@ -24,6 +24,7 @@
 #include <receive_context.h>
 
 // Standard headers
+#include <cstdint>
 #include <unordered_map>
 // #include <clocale>
 
@@ -75,6 +76,61 @@ static unordered_map<const char *, img_fmt> formats = {
     // There is also the issue of where white-spaces are allowed
     {"image/jpeg; zen=true", IMG_JPEG_ZEN}
 };
+
+
+// Converstion of src from TFrom to TTo, as required by the configuration
+template<typename TFrom, typename TTo> void conv_dt(const convert_conf *cfg, TFrom *src, TTo *dst) {
+    // Assume compact buffers, allocated with the right values
+    int count = static_cast<int>(cfg->inraster.pagesize.x * cfg->inraster.pagesize.y * cfg->inraster.pagesize.c);
+    const apr_array_header_t *arr = cfg->lut;
+    while (count--) {
+        double in_val = *src++;
+        int i = 0;
+
+        // Find the segment that contains in_val, or use last point
+        while (in_val > APR_ARRAY_IDX(arr, i, double) 
+            && arr->nelts > i + 3 
+            && in_val >= APR_ARRAY_IDX(arr, i + 3, double))
+            i += 3;
+
+        // Shortcut, if the value matches the start, conversion is exact
+        const double segment = in_val - APR_ARRAY_IDX(arr, i, double);
+        const double offset = APR_ARRAY_IDX(arr, i + 1, double);
+
+        // A shortcut, when the input value matches the point
+        if (segment <= 0) {
+            *dst++ = static_cast<TTo>(offset);
+            continue;
+        }
+
+        const double slope = APR_ARRAY_IDX(arr, i + 2, double);
+        // Use this point for the interpolation
+        const double out_val = offset + segment * slope;
+        // No over/under flow checks
+        *dst++ = static_cast<TTo>(out_val);
+    }
+}
+
+// Convert src as required by the configuration
+// Returns nullptr in case of errors
+void *convert_dt(const convert_conf *cfg, void *src) {
+    // Only UInt16 to Byte implemented at this time
+    switch (cfg->inraster.datatype) {
+    case GDT_UInt16:
+        switch (cfg->raster.datatype) {
+        case GDT_Byte:
+            // Can be done in place
+            conv_dt(cfg, reinterpret_cast<uint16_t *>(src), reinterpret_cast<uint8_t *>(src));
+            break;
+        default:
+            return nullptr;
+        }
+        break;
+    default:
+        return nullptr;
+    }
+    return src;
+}
 
 #define USER_AGENT "AHTSE Convert"
 
@@ -138,7 +194,7 @@ static int handler(request_rec *r)
 
     // Incoming tile buffer
     receive_ctx rctx;
-    rctx.maxsize = cfg->max_input_size;
+    rctx.maxsize = static_cast<int>(cfg->max_input_size);
     rctx.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, rctx.maxsize));
 
     // Create the subrequest
@@ -194,7 +250,8 @@ static int handler(request_rec *r)
     codec_params params;
     memset(&params, 0, sizeof(params));
     int pixel_size = GDTGetSize(cfg->inraster.datatype);
-    int input_line_width = static_cast<int>(cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
+    int input_line_width = static_cast<int>(
+        cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
     int pagesize = static_cast<int>(input_line_width * cfg->inraster.pagesize.y);
     params.line_stride = input_line_width;
     storage_manager src = { rctx.buffer, rctx.size };
@@ -229,6 +286,12 @@ static int handler(request_rec *r)
         out_params.has_transparency = true;
 
     storage_manager raw = {reinterpret_cast<char *>(buffer), pagesize};
+    if (cfg->inraster.datatype != cfg->raster.datatype) {
+        buffer = convert_dt(cfg, buffer);
+        SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
+        raw.buffer = reinterpret_cast<char *>(buffer);
+    }
+
     storage_manager dst = {
         reinterpret_cast<char *>(apr_palloc(r->pool, cfg->max_input_size)),
         static_cast<int>(cfg->max_input_size)
@@ -334,6 +397,10 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     if (nullptr != (line = apr_table_get(kvp, "LUT")) &&
         (err_message = read_lut(cmd, c, line)))
         return err_message;
+
+    if (c->raster.datatype != c->inraster.datatype &&
+        c->lut == nullptr)
+        return "Data type conversion without LUT defined";
 
     return nullptr;
 }
