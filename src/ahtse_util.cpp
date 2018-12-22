@@ -86,6 +86,9 @@ const char *add_regexp_to_array(apr_pool_t *p, apr_array_header_t **parr, const 
     return (nullptr != *m) ? nullptr : "Bad regular expression";
 }
 
+// Read a Key Value text file into a table
+// Empty lines and lines that start with # are ignored
+//
 apr_table_t *readAHTSEConfig(apr_pool_t *pool, const char *fname, const char **err_message)
 {
     *err_message = nullptr;
@@ -161,7 +164,7 @@ static double get_value(const char *s, int *has) {
     return value;
 }
 
-// Initialize a raster from a kvp table
+// Initialize a raster structure from a kvp table
 const char *configRaster(apr_pool_t *pool, apr_table_t *kvp, TiledRaster &raster)
 {
     const char *line;

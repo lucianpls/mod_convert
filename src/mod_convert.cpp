@@ -22,7 +22,10 @@
 
 // From mod_receive
 #include <receive_context.h>
+
+// Standard headers
 #include <unordered_map>
+// #include <clocale>
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
 
@@ -49,6 +52,9 @@ struct convert_conf {
 
     // the maximum size of an input tile
     apr_size_t max_input_size;
+
+    // Table of doubles. In pairs, even entries are inputs, odd entries are outputs, in increasing order of input values
+    apr_array_header_t *lut;
 
     // Meaning depends on output format
     double quality;
@@ -238,6 +244,37 @@ static void *create_dir_config(apr_pool_t *p, char * /* path */)
     return c;
 }
 
+// Reads a sequence of in:out floating point pairs, separated by commas.
+// Input values should be in increasing order
+// Might need "C" locale
+static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
+    apr_table_t *tokens = apr_table_make(cmd->temp_pool, 8);
+    char *lut_string = apr_pstrdup(cmd->temp_pool, lut);
+    char *last = nullptr;
+    char *token = apr_strtok(lut_string, ",", &last);
+
+    if (c->lut != nullptr)
+        return "LUT redefined";
+
+    apr_array_header_t *arr = apr_array_make(cmd->pool, 10, sizeof(double));
+
+    char *sep=nullptr;
+    while (token != nullptr) {
+        double value_in = strtod(token, &sep);
+        if (*sep++ != ':')
+            return apr_psprintf(cmd->temp_pool, "Malformed LUT token %s", token);
+        if (arr->nelts > 1 && APR_ARRAY_IDX(arr, arr->nelts - 2, double) >= value_in)
+            return "Incorrect LUT, input values should be increasing";
+        double value_out = strtod(sep, &sep);
+
+        APR_ARRAY_PUSH(arr, double) = value_in;
+        APR_ARRAY_PUSH(arr, double) = value_out;
+        token = apr_strtok(NULL, ",", &last);
+    }
+    c->lut = arr;
+    return nullptr;
+}
+
 static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src, const char *conf_name) {
     const char *err_message;
     const char *line; // temporary input
@@ -272,8 +309,13 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
             return err_message;
 
     line = apr_table_get(kvp, "InputBufferSize");
-    c->max_input_size = (line == nullptr) ? DEFAULT_INPUT_SIZE :
-        static_cast<apr_size_t>(apr_strtoi64(line, NULL, 0));
+    c->max_input_size = line ? static_cast<apr_size_t>(apr_strtoi64(line, NULL, 0)) :
+        DEFAULT_INPUT_SIZE;
+
+    // Single band, comma separated in:out value pairs
+    if (nullptr != (line = apr_table_get(kvp, "LUT")) &&
+        (err_message = read_lut(cmd, c, line)))
+        return err_message;
 
     return nullptr;
 }
