@@ -53,7 +53,10 @@ struct convert_conf {
     // the maximum size of an input tile
     apr_size_t max_input_size;
 
-    // Table of doubles. In pairs, even entries are inputs, odd entries are outputs, in increasing order of input values
+    // Table of doubles.
+    // Three values per point, except for the last one
+    // inputs, output, slope
+    // Input values are in increasing order
     apr_array_header_t *lut;
 
     // Meaning depends on output format
@@ -256,7 +259,8 @@ static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
     if (c->lut != nullptr)
         return "LUT redefined";
 
-    apr_array_header_t *arr = apr_array_make(cmd->pool, 10, sizeof(double));
+    // Start with sufficient space for 4 points
+    apr_array_header_t *arr = apr_array_make(cmd->pool, 12, sizeof(double));
 
     char *sep=nullptr;
     while (token != nullptr) {
@@ -265,12 +269,26 @@ static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
             return apr_psprintf(cmd->temp_pool, "Malformed LUT token %s", token);
         if (arr->nelts > 1 && APR_ARRAY_IDX(arr, arr->nelts - 2, double) >= value_in)
             return "Incorrect LUT, input values should be increasing";
-        double value_out = strtod(sep, &sep);
+
+        // 0.5 is rounding correction for integer types
+        double value_out = strtod(sep, &sep) + 0.5;
+        if (*sep != 0)
+            return apr_psprintf(cmd->temp_pool, 
+                "Extra characters in LUT token %s", token);
+
+        if (arr->nelts > 1) { // Fill in slope for the previous pair
+            double slope =
+                (value_out - APR_ARRAY_IDX(arr, arr->nelts - 1, double))
+                / (value_in - APR_ARRAY_IDX(arr, arr->nelts - 2, double));
+            APR_ARRAY_PUSH(arr, double) = slope;
+        }
 
         APR_ARRAY_PUSH(arr, double) = value_in;
         APR_ARRAY_PUSH(arr, double) = value_out;
         token = apr_strtok(NULL, ",", &last);
     }
+    // Push a zero for the last slope value, it will keep output values from overflowing
+    APR_ARRAY_PUSH(arr, double) = 0.0;
     c->lut = arr;
     return nullptr;
 }
