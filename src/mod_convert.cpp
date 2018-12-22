@@ -269,9 +269,13 @@ static int handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
-    // If datatype conversion is needed, branch to that part
-    //if (cfg->inraster.datatype != cfg->raster.datatype)
-    //    return convert_dt(r, buffer);
+    storage_manager raw = { reinterpret_cast<char *>(buffer), pagesize };
+    if (cfg->inraster.datatype != cfg->raster.datatype) {
+        buffer = convert_dt(cfg, buffer);
+        SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
+        raw.buffer = reinterpret_cast<char *>(buffer);
+        params.modified = 1; // Force PNG out when converting type
+    }
 
     // This part is only for converting Zen JPEGs to JPNG, as needed
     if (JPEG_SIG == in_format && params.modified == 0) // Zen mask absent or superfluous
@@ -285,12 +289,6 @@ static int handler(request_rec *r)
     if (params.modified)
         out_params.has_transparency = true;
 
-    storage_manager raw = {reinterpret_cast<char *>(buffer), pagesize};
-    if (cfg->inraster.datatype != cfg->raster.datatype) {
-        buffer = convert_dt(cfg, buffer);
-        SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
-        raw.buffer = reinterpret_cast<char *>(buffer);
-    }
 
     storage_manager dst = {
         reinterpret_cast<char *>(apr_palloc(r->pool, cfg->max_input_size)),
