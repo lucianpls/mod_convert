@@ -24,7 +24,7 @@ GDALDataType getDT(const char *name)
     if (name == nullptr) return GDT_Byte;
     if (!apr_strnatcasecmp(name, "UINT16"))
         return GDT_UInt16;
-    else if (!apr_strnatcasecmp(name, "INT16") || !apr_strnatcasecmp(name, "INT"))
+    else if (!apr_strnatcasecmp(name, "INT16") || !apr_strnatcasecmp(name, "SHORT"))
         return GDT_Int16;
     else if (!apr_strnatcasecmp(name, "UINT32"))
         return GDT_UInt32;
