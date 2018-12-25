@@ -38,8 +38,6 @@ APLOG_USE_MODULE(convert);
 #define DEFAULT_INPUT_SIZE (1024 * 1024)
 
 struct convert_conf {
-    // Set if this module is to be used from indirect (not external) requests?
-    int indirect;
     // array of guard regexp pointers, one of them has to match
     apr_array_header_t *arr_rxp;
 
@@ -62,6 +60,9 @@ struct convert_conf {
 
     // Meaning depends on output format
     double quality;
+
+    // Set if this module is to be used from indirect (not external) requests?
+    int indirect;
 };
 
 using namespace std;
@@ -79,9 +80,12 @@ static unordered_map<const char *, img_fmt> formats = {
 
 
 // Converstion of src from TFrom to TTo, as required by the configuration
-template<typename TFrom, typename TTo> void conv_dt(const convert_conf *cfg, TFrom *src, TTo *dst) {
+template<typename TFrom, typename TTo> void 
+    conv_dt(const convert_conf *cfg, TFrom *src, TTo *dst)
+{
     // Assume compact buffers, allocated with the right values
-    int count = static_cast<int>(cfg->inraster.pagesize.x * cfg->inraster.pagesize.y * cfg->inraster.pagesize.c);
+    int count = static_cast<int>(cfg->inraster.pagesize.x 
+        * cfg->inraster.pagesize.y * cfg->inraster.pagesize.c);
     const apr_array_header_t *arr = cfg->lut;
     while (count--) {
         double in_val = *src++;
@@ -93,7 +97,6 @@ template<typename TFrom, typename TTo> void conv_dt(const convert_conf *cfg, TFr
             && in_val >= APR_ARRAY_IDX(arr, i + 3, double))
             i += 3;
 
-        // Shortcut, if the value matches the start, conversion is exact
         const double segment = in_val - APR_ARRAY_IDX(arr, i, double);
         const double offset = APR_ARRAY_IDX(arr, i + 1, double);
 
@@ -104,10 +107,8 @@ template<typename TFrom, typename TTo> void conv_dt(const convert_conf *cfg, TFr
         }
 
         const double slope = APR_ARRAY_IDX(arr, i + 2, double);
-        // Use this point for the interpolation
-        const double out_val = offset + segment * slope;
         // No over/under flow checks
-        *dst++ = static_cast<TTo>(out_val);
+        *dst++ = static_cast<TTo>(offset + segment * slope);
     }
 }
 
@@ -312,7 +313,6 @@ static void *create_dir_config(apr_pool_t *p, char * /* path */)
 // Input values should be in increasing order
 // Might need "C" locale
 static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
-    apr_table_t *tokens = apr_table_make(cmd->temp_pool, 8);
     char *lut_string = apr_pstrdup(cmd->temp_pool, lut);
     char *last = nullptr;
     char *token = apr_strtok(lut_string, ",", &last);
