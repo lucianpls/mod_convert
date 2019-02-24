@@ -77,7 +77,7 @@ const char *png_stride_decode(codec_params &params,
             || static_cast<png_uint_32>(raster.pagesize.x) != width)
             throw "Input PNG has the wrong size";
 
-        if (png_get_rowbytes(pngp, infop) != params.line_stride)
+        if (png_get_rowbytes(pngp, infop) > params.line_stride)
             throw "Wrong type of data in PNG decode";
 
 #if defined(NEED_SWAP)
