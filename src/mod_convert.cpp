@@ -80,7 +80,7 @@ static unordered_map<const char *, img_fmt> formats = {
 
 
 // Converstion of src from TFrom to TTo, as required by the configuration
-template<typename TFrom, typename TTo> void 
+template<typename TFrom, typename TTo> static void 
     conv_dt(const convert_conf *cfg, TFrom *src, TTo *dst)
 {
     // Assume compact buffers, allocated with the right values
@@ -114,17 +114,18 @@ template<typename TFrom, typename TTo> void
 
 // Convert src as required by the configuration
 // Returns nullptr in case of errors
-void *convert_dt(const convert_conf *cfg, void *src) {
+static void *convert_dt(const convert_conf *cfg, void *src) {
     // Partial implementation
+    void *result = nullptr; // Assume error
+
     switch (cfg->inraster.datatype) {
     case GDT_UInt16:
         switch (cfg->raster.datatype) {
         case GDT_Byte:
             // Can be done in place
             conv_dt(cfg, reinterpret_cast<uint16_t *>(src), reinterpret_cast<uint8_t *>(src));
+            result = src;
             break;
-        default:
-            return nullptr;
         }
         break;
     case GDT_Byte:
@@ -132,14 +133,12 @@ void *convert_dt(const convert_conf *cfg, void *src) {
         case GDT_Byte:
             // Can be done in place
             conv_dt(cfg, reinterpret_cast<uint8_t *>(src), reinterpret_cast<uint8_t *>(src));
-        default:
-            return nullptr;
+            result = src;
+            break;
         }
         break;
-    default:
-        return nullptr;
     }
-    return src;
+    return result;
 }
 
 #define USER_AGENT "AHTSE Convert"
