@@ -115,7 +115,7 @@ template<typename TFrom, typename TTo> void
 // Convert src as required by the configuration
 // Returns nullptr in case of errors
 void *convert_dt(const convert_conf *cfg, void *src) {
-    // Only UInt16 to Byte implemented at this time
+    // Partial implementation
     switch (cfg->inraster.datatype) {
     case GDT_UInt16:
         switch (cfg->raster.datatype) {
@@ -123,6 +123,15 @@ void *convert_dt(const convert_conf *cfg, void *src) {
             // Can be done in place
             conv_dt(cfg, reinterpret_cast<uint16_t *>(src), reinterpret_cast<uint8_t *>(src));
             break;
+        default:
+            return nullptr;
+        }
+        break;
+    case GDT_Byte:
+        switch (cfg->raster.datatype) {
+        case GDT_Byte:
+            // Can be done in place
+            conv_dt(cfg, reinterpret_cast<uint8_t *>(src), reinterpret_cast<uint8_t *>(src));
         default:
             return nullptr;
         }
@@ -271,7 +280,9 @@ static int handler(request_rec *r)
     }
 
     storage_manager raw = { reinterpret_cast<char *>(buffer), pagesize };
-    if (cfg->inraster.datatype != cfg->raster.datatype) {
+
+    // LUT presence implies a data conversion
+    if (cfg->lut) {
         buffer = convert_dt(cfg, buffer);
         SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
         raw.buffer = reinterpret_cast<char *>(buffer);
