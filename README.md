@@ -6,6 +6,7 @@ An AHTSE component (apache httpd module) to convert tile image formats
 # Status
 
 Only implicit conversion from JPEG w/Zen (8 or 12bit) to JPEG or PNG is supported currently
+Explicit LUT driven modification of values is handled, for unsigned short to byte or byte to byte
 
 # Building
 
