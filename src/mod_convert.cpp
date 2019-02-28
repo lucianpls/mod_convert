@@ -126,6 +126,7 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
             conv_dt(cfg, reinterpret_cast<uint16_t *>(src), reinterpret_cast<uint8_t *>(src));
             result = src;
             break;
+        default:;
         }
         break;
     case GDT_Byte:
@@ -135,8 +136,10 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
             conv_dt(cfg, reinterpret_cast<uint8_t *>(src), reinterpret_cast<uint8_t *>(src));
             result = src;
             break;
+        default:;
         }
         break;
+    default:;
     }
     return result;
 }
