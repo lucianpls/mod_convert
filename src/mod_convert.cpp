@@ -388,14 +388,6 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     if (err_message != nullptr)
         return err_message;
 
-    // Mandatory fields for convert
-    if (nullptr == (line = apr_table_get(kvp, "SourcePath")))
-        return "SourcePath missing";
-    c->source = apr_pstrdup(cmd->pool, line);
-
-    if (nullptr != (line = apr_table_get(kvp, "SourcePostfix")))
-        c->postfix = apr_pstrdup(cmd->pool, line);
-
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
         && nullptr != (err_message = readFile(cmd->pool, c->raster.missing.empty, line)))
             return err_message;
@@ -421,6 +413,21 @@ static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *patte
     return add_regexp_to_array(cmd->pool, &c->arr_rxp, pattern);
 }
 
+// Directive: Convert
+static const char *check_config(cmd_parms *cmd, convert_conf *c, const char *value)
+{
+    // Check the basic requirements
+    if (!c->source)
+        return "Convert_Source directive is required";
+
+    // Dump the configuration in a string and return it, debug help
+    if (!apr_strnatcasecmp(value, "verbose")) {
+        return "Unimplemented";
+    }
+
+    return NULL;
+}
+
 static const command_rec cmds[] =
 {
     AP_INIT_TAKE2(
@@ -430,6 +437,7 @@ static const command_rec cmds[] =
         ACCESS_CONF, // availability
         "Source and output configuration files"
     ),
+
     AP_INIT_TAKE1(
         "Convert_RegExp",
         (cmd_func) set_regexp,
@@ -437,6 +445,23 @@ static const command_rec cmds[] =
         ACCESS_CONF, // availability
         "Regular expression for triggering mod_convert"
     ),
+
+    AP_INIT_TAKE1(
+        "Convert_Source",
+        (cmd_func)ap_set_string_slot,
+        (void *)APR_OFFSETOF(convert_conf, source),
+        ACCESS_CONF,
+        "Required, internal redirect path for the source"
+    ),
+
+    AP_INIT_TAKE1(
+        "Convert_SourcePostfix",
+        (cmd_func)ap_set_string_slot,
+        (void *)APR_OFFSETOF(convert_conf, postfix),
+        ACCESS_CONF,
+        "Optional, internal redirect path ending, to be added after the M/L/R/C"
+    ),
+
     AP_INIT_FLAG(
         "Convert_Indirect",
         (cmd_func) ap_set_flag_slot,
@@ -444,6 +469,16 @@ static const command_rec cmds[] =
         ACCESS_CONF,
         "If set, the module does not respond to external requests, only to internal redirects"
     ),
+
+    AP_INIT_TAKE1(
+        "Convert",
+        (cmd_func)check_config,
+        0,
+        ACCESS_CONF,
+        "On to check the configuration, it should be the last Reproject directive in a given location."
+        " Setting it to verbose will dump the configuration"
+    ),
+
     { NULL }
 };
 
