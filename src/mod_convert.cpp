@@ -155,11 +155,15 @@ static int handler(request_rec *r)
     convert_conf *cfg = reinterpret_cast<convert_conf *>(
         ap_get_module_config(r->per_dir_config, &convert_module));
 
+    auto req_cfg = ap_get_module_config(r->request_config, &convert_module);
+    if (req_cfg)
+        cfg = reinterpret_cast<convert_conf *>(req_cfg);
+
     // If indirect is set, only activate on subrequests
     if (cfg->indirect && r->main == nullptr)
         return DECLINED;
 
-    if (nullptr == cfg || nullptr == cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
+    if (!cfg || !cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
         return DECLINED;
 
     apr_array_header_t *tokens = tokenize(r->pool, r->uri);
