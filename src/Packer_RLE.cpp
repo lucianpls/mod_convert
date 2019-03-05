@@ -49,7 +49,8 @@ typedef unsigned char Byte;
 // a value between 1 and min(max_count, MAX_RUN)
 inline static int run_length(const Byte *s, int max_count)
 {
-    max_count = max(max_count, MAX_RUN);
+    if (max_count > MAX_RUN)
+        max_count = MAX_RUN;
     const Byte c = *s++;
     for (int count = 1; count < max_count; count++)
         if (c != *s++)
