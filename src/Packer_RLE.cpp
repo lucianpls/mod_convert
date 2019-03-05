@@ -49,8 +49,7 @@ typedef unsigned char Byte;
 // a value between 1 and min(max_count, MAX_RUN)
 inline static int run_length(const Byte *s, int max_count)
 {
-    if (max_count > MAX_RUN)
-        max_count = MAX_RUN;
+    max_count = max(max_count, MAX_RUN);
     const Byte c = *s++;
     for (int count = 1; count < max_count; count++)
         if (c != *s++)
@@ -71,43 +70,44 @@ inline static int run_length(const Byte *s, int max_count)
 static size_t toYarn(const char *ibuffer, char *obuf, size_t len, Byte CODE = 0xC3) {
     Byte *next = reinterpret_cast<Byte *>(obuf);
 
-    while (len) {
+    while (len > 0) {
         Byte b = static_cast<Byte>(*ibuffer);
         int run = run_length(reinterpret_cast<const Byte *>(ibuffer), static_cast<int>(len));
-        if (run < 4) { // Encoded as single bytes, stored as such, CODE followed by a zero
-            run = 1;
-            *next++ = b;
-            if (CODE == b)
-                *next++ = 0;
-        }
-        else { // Encoded as a sequence
-            *next++ = CODE; // Start with Marker code, always present
 
-            if (run > 767) { // long sequence
-                ibuffer += 768; // May be unsafe to read *ibuffer
-                len -= 768;
-                run -= 768;
-                *next++ = 3;
-                *next++ = UC(run >> 8); // Forced high count
+        if (run < 4) {
+            // Encoded as single bytes, stored as such, CODE followed by a zero
+            while (run--) {
+                *next++ = b;
+                if (CODE == b)
+                    *next++ = 0;
+                ibuffer++;
+                len--;
             }
-            else if (run > 255) { // Between 256 and 767, medium sequence
-                *next++ = UC(run >> 8); // High count
-            }
-
-            *next++ = UC(run & 0xff); // Low count, always present
-            *next++ = b;   // End with Value, always present
+            continue;
         }
+
+        // Encoded as a sequence
+        *next++ = CODE; // Start with Marker code, always present
+
+        if (run >= 768) { // Long sequence
+            ibuffer += 768; // May be unsafe to read *ibuffer
+            len -= 768;
+            run -= 768;
+            *next++ = 3;
+            *next++ = UC(run >> 8); // Forced high count
+        }
+        else if (run >= 256) { // medium sequence, between 256 and 767
+            *next++ = UC(run >> 8); // High count, could be 1 or 2
+        }
+
+        // Low count and value are always present
+        *next++ = UC(run & 0xff);
+        *next++ = b;
         ibuffer += run;
         len -= run;
     }
     RET_NOW;
 }
-
-// Check that another input byte can be read, return now otherwise
-// Adjusts the input length too
-#define CHECK_INPUT if (ilen == 0) RET_NOW
-// Reads a byte and adjust the input pointer
-#define NEXT_BYTE UC(*ibuffer++)
 
 //
 // C decompress function, returns actual decompressed size
@@ -115,53 +115,51 @@ static size_t toYarn(const char *ibuffer, char *obuf, size_t len, Byte CODE = 0x
 // returns the number of output bytes written
 //
 static size_t fromYarn(const char *ibuffer, size_t ilen, char *obuf, size_t olen, Byte CODE = 0xC3) {
+
+    // Get a byte, after checking that it can be read, return otherwise
+#define GET_BYTE(X) do {if (0 == ilen--) RET_NOW; X = UC(*ibuffer++);} while(0)
+
     Byte *next = reinterpret_cast<Byte *>(obuf);
     while (ilen > 0 && olen > 0) {
-        // It is safe to read and write one byte
-        Byte b = NEXT_BYTE;
-        ilen--;
+        Byte b;
+        GET_BYTE(b);
         if (b != CODE) { // Copy single chars
             *next++ = b;
             olen--;
+            continue;
         }
-        else { // Marker found, which type of sequence is it?
-            CHECK_INPUT;
-            b = NEXT_BYTE;
-            ilen--;
-            if (b == 0) { // Emit one code
-                *next++ = CODE;
-                olen--;
-            }
-            else { // Sequence
-                size_t run = 0;
-                if (b < 4) {
-                    run = 256 * b;
-                    if (3 == b) { // Second byte of high count
-                        CHECK_INPUT;
-                        run += 256 * NEXT_BYTE;
-                        ilen--;
-                    }
-                    CHECK_INPUT;
-                    run += NEXT_BYTE;
-                    ilen--;
-                }
-                else { // Single byte count
-                    run = b;
-                }
 
-                // Write the sequence out, after checking
-                if (olen < run) RET_NOW;
-                CHECK_INPUT;
-                b = NEXT_BYTE;
-                ilen--;
-                memset(next, b, run);
-
-                next += run;
-                olen -= run;
-            }
+        // Sequence marker found, which type is it?
+        GET_BYTE(b);
+        if (0 == b) { // Escape sequence, emit one code
+            *next++ = CODE;
+            olen--;
+            continue;
         }
+
+        // Sequence
+        size_t run = b;
+        if (b < 4) {
+            run *= 256;
+            GET_BYTE(b);
+            if (run == 768) { // Long sequence, b is high byte
+                run += 256 * b;
+                GET_BYTE(b);
+            }
+            run += b;
+        }
+        GET_BYTE(b); // the value
+
+        // Write the sequence out, after checking that it can be done
+        if (olen < run)
+            RET_NOW;
+        memset(next, b, run);
+        next += run;
+        olen -= run;
     }
     RET_NOW;
+
+#undef GET_BYTE
 }
 
 // Returns the least used byte value from a buffer
