@@ -137,7 +137,7 @@
       <AdditionalOptions>/EXPORT:convert_module,@1</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>copy /y $(OutDir)$(TargetName)$(TargetExt) \Apache24\modules</Command>
+      <Command>copy /y $(TargetPath) \Apache24\modules</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>cd $(ProjectDir)src\jpeg12-6b

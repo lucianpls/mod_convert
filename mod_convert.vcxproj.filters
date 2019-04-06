@@ -12,9 +12,6 @@
     <Filter Include="Support Files">
       <UniqueIdentifier>{29c5be88-9cfc-4ca8-a593-0d65308bdb9e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\jpeg12-6b">
-      <UniqueIdentifier>{554a77e8-4d32-49ff-a3f3-caf816621f2e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Support Files\jpeg12-6b">
       <UniqueIdentifier>{1a195d0c-c2bd-4d41-b036-3e0d35b292e6}</UniqueIdentifier>
     </Filter>

@@ -90,14 +90,14 @@ static size_t toYarn(const char *ibuffer, char *obuf, size_t len, Byte CODE = 0x
         // Encoded as a sequence
         *next++ = CODE; // Start with Marker code, always present
 
-        if (run >= 768) { // Long sequence
-            ibuffer += 768; // May be unsafe to read *ibuffer
-            len -= 768;
-            run -= 768;
+        if (run >= 0x300) { // Long sequence
+            ibuffer += 0x300; // May be unsafe to read *ibuffer
+            len -= 0x300;
+            run -= 0x300;
             *next++ = 3;
             *next++ = UC(run >> 8); // Forced high count
         }
-        else if (run >= 256) { // medium sequence, between 256 and 767
+        else if (run >= 0x100) { // medium sequence, between 256 and 767
             *next++ = UC(run >> 8); // High count, could be 1 or 2
         }
 
