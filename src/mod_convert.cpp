@@ -9,7 +9,8 @@
 // #include <tuple>
 // #include <vector>
 
-#include <httpd.h>
+#include <ahtse.h>
+
 #include <http_main.h>
 #include <http_protocol.h>
 #include <http_core.h>
@@ -18,8 +19,6 @@
 
 #include <apr_strings.h>
 
-#include "ahtse_util.h"
-
 // From mod_receive
 #include <receive_context.h>
 
@@ -27,6 +26,8 @@
 #include <cstdint>
 #include <unordered_map>
 // #include <clocale>
+
+NS_AHTSE_USE
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
 
@@ -344,7 +345,7 @@ static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
     while (token != nullptr) {
         double value_in = strtod(token, &sep);
         if (*sep++ != ':')
-            return apr_psprintf(cmd->temp_pool, "Malformed LUT token %s", token);
+            return apr_psprintf(cmd->temp_pool, "Error in LUT token %s", token);
         if (arr->nelts > 1 && APR_ARRAY_IDX(arr, arr->nelts - 2, double) >= value_in)
             return "Incorrect LUT, input values should be increasing";
 

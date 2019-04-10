@@ -12,41 +12,9 @@
     <Filter Include="Support Files">
       <UniqueIdentifier>{29c5be88-9cfc-4ca8-a593-0d65308bdb9e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Support Files\jpeg12-6b">
-      <UniqueIdentifier>{1a195d0c-c2bd-4d41-b036-3e0d35b292e6}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\ahtse_util.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\BitMask2D.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\JPEG_codec.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mod_convert.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\JPEG_codec.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PNG_codec.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ahtse_util.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Packer_RLE.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\JPEG8.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\JPEG12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -65,12 +33,6 @@
     </None>
     <None Include="src\Makefile_lcl.example">
       <Filter>Support Files</Filter>
-    </None>
-    <None Include="src\jpeg12-6b\makefile.vc">
-      <Filter>Support Files\jpeg12-6b</Filter>
-    </None>
-    <None Include="src\jpeg12-6b\Makefile">
-      <Filter>Support Files\jpeg12-6b</Filter>
     </None>
   </ItemGroup>
 </Project>
