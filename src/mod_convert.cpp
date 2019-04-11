@@ -66,6 +66,12 @@ struct convert_conf {
     int indirect;
 };
 
+static inline convert_conf *get_conf(request_rec *r) {
+    convert_conf *cfg = (convert_conf *)ap_get_module_config(r->request_config, &convert_module);
+    if (cfg) return cfg;
+    return (convert_conf *)ap_get_module_config(r->per_dir_config, &convert_module);
+}
+
 using namespace std;
 
 // mapping of mime-types to known formats
@@ -153,12 +159,7 @@ static int handler(request_rec *r)
     if (r->method_number != M_GET || nullptr != r->args)
         return DECLINED;
 
-    convert_conf *cfg = reinterpret_cast<convert_conf *>(
-        ap_get_module_config(r->per_dir_config, &convert_module));
-
-    auto req_cfg = ap_get_module_config(r->request_config, &convert_module);
-    if (req_cfg)
-        cfg = reinterpret_cast<convert_conf *>(req_cfg);
+    auto *cfg = get_conf(r);
 
     // If indirect is set, only activate on subrequests
     if (cfg->indirect && r->main == nullptr)
