@@ -252,8 +252,28 @@ static int handler(request_rec *r)
     }
 
     // If the input tile is the empty tile, send the output empty tile right now
-    if (sETag != nullptr && !ap_cstr_casecmp(sETag, cfg->inraster.missing.eTag))
-        return sendEmptyTile(r, cfg->raster.missing);
+    apr_uint64_t seed = 0;
+    int missing = 0;
+    if (sETag != nullptr) {
+        seed = base32decode(sETag, &missing);
+        if (missing || !ap_cstr_casecmp(sETag, cfg->inraster.missing.eTag))
+            return sendEmptyTile(r, cfg->raster.missing);
+    }
+
+    // Input wasn't missing, compute an ETag, there is only one input ETag to use
+    seed ^= cfg->raster.seed;
+    if (seed == cfg->raster.seed) // Likely the input didn't provide an ETag
+    { // Use some of the input bytes to make a better hash
+        const int values = 32;
+        seed = cfg->raster.seed;
+        for (int i = 0; i < values; i++)
+            seed ^= ((apr_uint64_t)rctx.buffer[(rctx.size / values) * i]) << ((i * 8) % 64);
+    }
+
+    char ETag[16];
+    tobase32(seed, ETag);
+    if (etagMatches(r, ETag))
+        return HTTP_NOT_MODIFIED;
 
     // What format is the source, and what is the compression we want?
     apr_uint32_t in_format;
@@ -313,6 +333,7 @@ static int handler(request_rec *r)
     message = png_encode(out_params, cfg->raster, raw, dst);
     SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
 
+    apr_table_set(r->headers_out, "ETag", ETag);
     return sendImage(r, dst, "image/png");
 }
 
