@@ -66,12 +66,6 @@ struct convert_conf {
     int indirect;
 };
 
-static inline convert_conf *get_conf(request_rec *r) {
-    convert_conf *cfg = (convert_conf *)ap_get_module_config(r->request_config, &convert_module);
-    if (cfg) return cfg;
-    return (convert_conf *)ap_get_module_config(r->per_dir_config, &convert_module);
-}
-
 using namespace std;
 
 // mapping of mime-types to known formats
@@ -159,7 +153,7 @@ static int handler(request_rec *r)
     if (r->method_number != M_GET || nullptr != r->args)
         return DECLINED;
 
-    auto *cfg = get_conf(r);
+    auto *cfg = get_conf<convert_conf>(r, &convert_module);
 
     // If indirect is set, only activate on subrequests
     if (cfg->indirect && r->main == nullptr)
@@ -246,9 +240,9 @@ static int handler(request_rec *r)
     ap_remove_output_filter(rf);
 
     // Get a copy of the source ETag, otherwise it goes away with the subrequest
-    const char *ETag = apr_table_get(sr->headers_out, "ETag");
-    if (ETag != nullptr)
-        ETag = apr_pstrdup(r->pool, ETag);
+    const char *sETag = apr_table_get(sr->headers_out, "ETag");
+    if (sETag != nullptr)
+        sETag = apr_pstrdup(r->pool, sETag);
 
     ap_destroy_sub_req(sr);
     if (rr_status != APR_SUCCESS) {
@@ -258,7 +252,7 @@ static int handler(request_rec *r)
     }
 
     // If the input tile is the empty tile, send the output empty tile right now
-    if (ETag != nullptr && !ap_cstr_casecmp(ETag, cfg->inraster.missing.eTag))
+    if (sETag != nullptr && !ap_cstr_casecmp(sETag, cfg->inraster.missing.eTag))
         return sendEmptyTile(r, cfg->raster.missing);
 
     // What format is the source, and what is the compression we want?
