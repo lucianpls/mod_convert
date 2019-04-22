@@ -409,7 +409,7 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
 
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
         && nullptr != (err_message = 
-                readFile(cmd->pool, c->raster.missing.empty, line)))
+                readFile(cmd->pool, c->raster.missing.data, line)))
             return err_message;
 
     line = apr_table_get(kvp, "InputBufferSize");
