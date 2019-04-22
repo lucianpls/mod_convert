@@ -43,7 +43,6 @@ struct convert_conf {
     apr_array_header_t *arr_rxp;
 
     TiledRaster raster, inraster;
-    // const char *source, *postfix;
 
     // internal path of source
     char *source;
@@ -286,7 +285,7 @@ static int handler(request_rec *r)
         cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
     int pagesize = static_cast<int>(input_line_width * cfg->inraster.pagesize.y);
     params.line_stride = input_line_width;
-    storage_manager src = { rctx.buffer, rctx.size };
+    storage_manager src(rctx.buffer, rctx.size);
     void *buffer = apr_pcalloc(r->pool, pagesize);
 
     if (JPEG_SIG == in_format) {
@@ -301,7 +300,7 @@ static int handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
-    storage_manager raw = { reinterpret_cast<char *>(buffer), pagesize };
+    storage_manager raw(buffer, pagesize);
 
     // LUT presence implies a data conversion
     if (cfg->lut) {
@@ -324,10 +323,9 @@ static int handler(request_rec *r)
         out_params.has_transparency = true;
 
 
-    storage_manager dst = {
-        reinterpret_cast<char *>(apr_palloc(r->pool, cfg->max_input_size)),
-        static_cast<int>(cfg->max_input_size)
-    };
+    storage_manager dst(
+        apr_palloc(r->pool, cfg->max_input_size),
+        cfg->max_input_size);
     SERVER_ERR_IF(dst.buffer == nullptr, r, "Memmory allocation error");
 
     message = png_encode(out_params, cfg->raster, raw, dst);
@@ -410,7 +408,8 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
         return err_message;
 
     if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
-        && nullptr != (err_message = readFile(cmd->pool, c->raster.missing.empty, line)))
+        && nullptr != (err_message = 
+                readFile(cmd->pool, c->raster.missing.empty, line)))
             return err_message;
 
     line = apr_table_get(kvp, "InputBufferSize");
