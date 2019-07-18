@@ -25,7 +25,6 @@
 // Standard headers
 #include <cstdint>
 #include <unordered_map>
-// #include <clocale>
 
 NS_AHTSE_USE
 
@@ -168,7 +167,8 @@ static int handler(request_rec *r)
     // This is a request to be handled here
 
     // This is a server configuration error
-    SERVER_ERR_IF(!ap_get_output_filter_handle("Receive"), r, "mod_receive not found");
+    SERVER_ERR_IF(!ap_get_output_filter_handle("Receive"),
+        r, "mod_receive not found");
 
     sz tile;
     memset(&tile, 0, sizeof(sz));
@@ -297,6 +297,8 @@ static int handler(request_rec *r)
 
     if (message) {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "raster type is %d size %d", 
+            static_cast<int>(cfg->inraster.datatype), pixel_size);
         return HTTP_NOT_FOUND;
     }
 
