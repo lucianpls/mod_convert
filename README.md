@@ -2,7 +2,6 @@
 
 An AHTSE component (apache httpd module) to convert tile image formats
 
-
 # Status
 
 Only implicit conversion from JPEG w/Zen (8 or 12bit) to JPEG or PNG is supported currently
@@ -14,18 +13,17 @@ Requires apache httpd, libjpeg, libpng and libz to be available.
 For Linux, this means the runtime and the development packages have to be installed  
 For the Windows VS solution, the headers are expected to be in the zlib, png and jpeg named folders in the same directory as the project files.  Apache runtime and development should be available under the /Apache24 folder
 
-# Usage
+## Apache Configuration Directives  
 
-Implements three apache httpd configuration directives:
-
-## Convert_RegExp pattern
+* *Convert_RegExp* Match  
 Can be used more than once, a request has to match at least one of the patterns before it is considered a mod_convert request
 
-## Convert_ConfigurationFiles source_configuration main_configuration
+* *Convert_ConfigurationFiles* source_configuration_file configuration_file
 The source_configuration should be the name of the file describing the AHTSE tile data source.  The main_configurtion contains directives controlling the output of the mod_convert.
 
-## Convert_Indirect On
+* *Convert_Indirect* On
 If set, the AHTSE convert module will not respond to normal requests, only to internal subrequests
+
 
 # AHTSE directives that can appear both the source and the main configuration
 
@@ -59,7 +57,7 @@ If this directive is not present, a missing tile request will result in a HTTP n
 
 # Directives that appear in the main configuration only
 
-## SourcePath path
+## SourcePath Redirect_Path Postfix
 - Mandatory, the location of the source, up to the first numerical argument, as a local web path
 
 ## SourcePostfix string

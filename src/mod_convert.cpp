@@ -468,20 +468,12 @@ static const command_rec cmds[] =
         "Regular expression for triggering mod_convert"
     ),
 
-    AP_INIT_TAKE1(
+    AP_INIT_TAKE12(
         "Convert_Source",
-        (cmd_func)ap_set_string_slot,
-        (void *)APR_OFFSETOF(convert_conf, source),
+        (cmd_func) set_source<convert_conf>,
+        0,
         ACCESS_CONF,
         "Required, internal redirect path for the source"
-    ),
-
-    AP_INIT_TAKE1(
-        "Convert_SourcePostfix",
-        (cmd_func)ap_set_string_slot,
-        (void *)APR_OFFSETOF(convert_conf, postfix),
-        ACCESS_CONF,
-        "Optional, internal redirect path ending, to be added after the M/L/R/C"
     ),
 
     AP_INIT_FLAG(
