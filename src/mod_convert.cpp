@@ -46,7 +46,7 @@ struct convert_conf {
     // internal path of source
     char *source;
     // append this to the end of request url to the input
-    char *postfix;
+    char *suffix;
 
     // the maximum size of an input tile
     apr_size_t max_input_size;
@@ -221,7 +221,7 @@ static int handler(request_rec *r)
             static_cast<int>(tile.l),
             static_cast<int>(tile.y),
             static_cast<int>(tile.x)),
-        cfg->postfix,
+        cfg->suffix,
         NULL);
 
     request_rec *sr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
