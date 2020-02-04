@@ -4,14 +4,14 @@ An AHTSE component (apache httpd module) to convert tile image formats
 
 # Status
 
-Only implicit conversion from JPEG w/Zen (8 or 12bit) to JPEG or PNG is supported currently
-Explicit LUT driven modification of values is handled, for unsigned short to byte or byte to byte
+Only implicit conversion from JPEG w/Zen (8 or 12bit) to JPEG or PNG is supported currently.  
+Explicit LUT driven modification of values is handled, for unsigned short to byte or byte to byte.
 
 # Building
 
 Requires apache httpd, libjpeg, libpng and libz to be available.  
-For Linux, this means the runtime and the development packages have to be installed  
-For the Windows VS solution, the headers are expected to be in the zlib, png and jpeg named folders in the same directory as the project files.  Apache runtime and development should be available under the /Apache24 folder
+For Linux, this means the runtime and the development packages have to be installed.  
+For the Windows VS solution, the header files are expected to be in the zlib, png and jpeg named folders in the same directory as the project files. httpd runtime and development should be available under the /Apache24 folder.
 
 ## Apache Configuration Directives  
 
