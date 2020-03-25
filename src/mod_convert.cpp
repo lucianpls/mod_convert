@@ -148,7 +148,7 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
 static int handler(request_rec *r)
 {
     const char *message;
-    if (r->method_number != M_GET || nullptr != r->args)
+    if (r->method_number != M_GET)
         return DECLINED;
 
     auto *cfg = get_conf<convert_conf>(r, &convert_module);
