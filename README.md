@@ -9,9 +9,7 @@ Explicit LUT driven modification of values is handled, for unsigned short to byt
 
 # Building
 
-Requires apache httpd, libjpeg, libpng and libz to be available.  
-For Linux, this means the runtime and the development packages have to be installed.  
-For the Windows VS solution, the header files are expected to be in the zlib, png and jpeg named folders in the same directory as the project files. httpd runtime and development should be available under the /Apache24 folder.
+Requires libahtse.  
 
 ## Apache Configuration Directives  
 
