@@ -11,15 +11,15 @@ Explicit LUT driven modification of values is handled, for unsigned short to byt
 
 Requires libahtse.  
 
-## Apache Configuration Directives  
+# Apache Configuration Directives  
 
-* *Convert_RegExp* Match  
+## *Convert_RegExp* Match  
 Can be used more than once, a request has to match at least one of the patterns before it is considered a mod_convert request
 
-* *Convert_ConfigurationFiles* source_configuration_file configuration_file
+## *Convert_ConfigurationFiles* source_configuration_file configuration_file
 The source_configuration should be the name of the file describing the AHTSE tile data source.  The main_configurtion contains directives controlling the output of the mod_convert.
 
-* *Convert_Indirect* On
+## *Convert_Indirect* On
 If set, the AHTSE convert module will not respond to normal requests, only to internal subrequests
 
 
