@@ -53,7 +53,7 @@ If this directive is not present, a missing tile request will result in a HTTP n
 ## MaxValue value
 - Optional, the maximum value of the pixels, single numerical value, C style double
 
-# Directives that appear in the main configuration only
+# Directives that appear in the convert configuration only
 
 ## SourcePath Redirect_Path Postfix
 - Mandatory, the location of the source, up to the first numerical argument, as a local web path
