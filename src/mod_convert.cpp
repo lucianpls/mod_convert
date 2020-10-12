@@ -3,7 +3,7 @@
 *
 * Part of AHTSE, converts from one image format to another
 *
-* (C) Lucian Plesea 2018
+* (C) Lucian Plesea 2018-2020
 */
 
 // #include <tuple>
@@ -33,9 +33,6 @@ extern module AP_MODULE_DECLARE_DATA convert_module;
 #if defined(APLOG_USE_MODULE)
 APLOG_USE_MODULE(convert);
 #endif
-
-// Max compressed input tile is 1MB
-#define DEFAULT_INPUT_SIZE (1024 * 1024)
 
 struct convert_conf {
     // array of guard regexp pointers, one of them has to match
@@ -395,28 +392,29 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     apr_table_t *kvp = readAHTSEConfig(cmd->temp_pool, src, &err_message);
     if (nullptr == kvp)
         return err_message;
-
     err_message = configRaster(cmd->pool, kvp, c->inraster);
-    if (err_message != nullptr)
+    if (err_message)
         return err_message;
 
     // The output configuration file
     kvp = readAHTSEConfig(cmd->temp_pool, conf_name, &err_message);
     if (nullptr == kvp)
         return err_message;
-
     err_message = configRaster(cmd->pool, kvp, c->raster);
-    if (err_message != nullptr)
+    if (err_message)
         return err_message;
 
-    if (nullptr != (line = apr_table_get(kvp, "EmptyTile"))
-        && nullptr != (err_message = 
-                readFile(cmd->pool, c->raster.missing.data, line)))
+    line = apr_table_get(kvp, "EmptyTile");
+    if (nullptr != line) {
+        err_message = readFile(cmd->pool, c->raster.missing.data, line);
+        if (err_message)
             return err_message;
+    }
 
+    c->max_input_size = MAX_TILE_SIZE;
     line = apr_table_get(kvp, "InputBufferSize");
-    c->max_input_size = line ? static_cast<apr_size_t>(apr_strtoi64(line, NULL, 0)) :
-        DEFAULT_INPUT_SIZE;
+    if (line)
+        c->max_input_size = static_cast<apr_size_t>(apr_strtoi64(line, nullptr, 0));
 
     // Single band, comma separated in:out value pairs
     if (nullptr != (line = apr_table_get(kvp, "LUT")) &&
@@ -430,8 +428,7 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     return nullptr;
 }
 
-static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *pattern)
-{
+static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *pattern) {
     return add_regexp_to_array(cmd->pool, &c->arr_rxp, pattern);
 }
 
@@ -447,7 +444,7 @@ static const char *check_config(cmd_parms *cmd, convert_conf *c, const char *val
         return "Unimplemented";
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static const command_rec cmds[] =
@@ -497,15 +494,15 @@ static const command_rec cmds[] =
 };
 
 static void register_hooks(apr_pool_t *p) {
-    ap_hook_handler(handler, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_handler(handler, nullptr, nullptr, APR_HOOK_MIDDLE);
 }
 
 module AP_MODULE_DECLARE_DATA convert_module = {
     STANDARD20_MODULE_STUFF,
     create_dir_config,
-    0, // dir merge
-    0, // server config
-    0, // server merge
+    NULL, // dir merge
+    NULL, // server config
+    NULL, // server merge
     cmds, // configuration directives
     register_hooks // processing hooks
 };
