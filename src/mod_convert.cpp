@@ -29,6 +29,7 @@
 NS_AHTSE_USE
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
+#define USER_AGENT "AHTSE Convert"
 
 #if defined(APLOG_USE_MODULE)
 APLOG_USE_MODULE(convert);
@@ -62,18 +63,6 @@ struct convert_conf {
 };
 
 using namespace std;
-
-// mapping of mime-types to known formats
-// mime types, subtypes and parameters are case insensitive
-static unordered_map<const char *, img_fmt> formats = {
-    {"image/jpeg", IMG_JPEG},
-    {"image/png", IMG_PNG},
-    // TODO: This one is not right at all.  Proper media types seem to require a full parser
-    // Also, the parameter is in key=value format, with the key being case insensitive
-    // There is also the issue of where white-spaces are allowed
-    {"image/jpeg; zen=true", IMG_JPEG_ZEN}
-};
-
 
 // Converstion of src from TFrom to TTo, as required by the configuration
 template<typename TFrom, typename TTo> static void 
@@ -109,6 +98,7 @@ template<typename TFrom, typename TTo> static void
 }
 
 // Convert src as required by the configuration
+// returns pointer to where the output is, could be different from source
 // Returns nullptr in case of errors
 static void *convert_dt(const convert_conf *cfg, void *src) {
     // Partial implementation
@@ -139,8 +129,6 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
     }
     return result;
 }
-
-#define USER_AGENT "AHTSE Convert"
 
 static int handler(request_rec *r)
 {
@@ -194,10 +182,10 @@ static int handler(request_rec *r)
     // Same is true for outside of input bounds
     if (tile.l >= cfg->inraster.n_levels ||
         tile.x >= cfg->inraster.rsets[tile.l].w ||
-        tile.y >= cfg->inraster.rsets[tile.l].w)
+        tile.y >= cfg->inraster.rsets[tile.l].h)
         return sendEmptyTile(r, cfg->raster.missing);
 
-    // Convert to input level
+    // Convert to true input level
     tile.l -= cfg->inraster.skip;
 
     // Incoming tile buffer
@@ -206,20 +194,11 @@ static int handler(request_rec *r)
     rctx.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, rctx.maxsize));
 
     // Create the subrequest
-    char *sub_uri = apr_pstrcat(r->pool,
-        cfg->source,
-        (tile.z == 0) ?
-        apr_psprintf(r->pool, "/%d/%d/%d",
-            static_cast<int>(tile.l),
-            static_cast<int>(tile.y),
-            static_cast<int>(tile.x)) :
-        apr_psprintf(r->pool, "/%d/%d/%d/%d",
-            static_cast<int>(tile.z),
-            static_cast<int>(tile.l),
-            static_cast<int>(tile.y),
-            static_cast<int>(tile.x)),
-        cfg->suffix,
-        NULL);
+    char *sub_uri = apr_pstrcat(r->pool, cfg->source,
+        apr_psprintf(r->pool, tile.z ? "%d/%d/%d/%d" : "/%d/%d/%d",
+            static_cast<int>(tile.z), static_cast<int>(tile.l),
+            static_cast<int>(tile.y), static_cast<int>(tile.x)),
+        cfg->suffix, NULL);
 
     request_rec *sr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
 
@@ -285,12 +264,10 @@ static int handler(request_rec *r)
     storage_manager src(rctx.buffer, rctx.size);
     void *buffer = apr_pcalloc(r->pool, pagesize);
 
-    if (JPEG_SIG == in_format) {
-        message = jpeg_stride_decode(params, cfg->inraster, src, buffer);
-    } 
-    else { // format error
+    if (JPEG_SIG == in_format)
+        message = jpeg_stride_decode(params, src, buffer);
+    else // format error
         message = "Unsupported input format";
-    }
 
     if (message) {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
@@ -314,7 +291,7 @@ static int handler(request_rec *r)
         return sendImage(r, src, "image/jpeg");
 
     png_params out_params;
-    set_def_png_params(cfg->raster, &out_params);
+    set_png_params(cfg->raster, &out_params);
 
     // By default the NDV is zero, and the NVD field is zero
     // Check one more time that we had a Zen mask before turning the transparency on
@@ -327,7 +304,7 @@ static int handler(request_rec *r)
         cfg->max_input_size);
     SERVER_ERR_IF(dst.buffer == nullptr, r, "Memmory allocation error");
 
-    message = png_encode(out_params, cfg->raster, raw, dst);
+    message = png_encode(out_params, raw, dst);
     SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
 
     apr_table_set(r->headers_out, "ETag", ETag);
