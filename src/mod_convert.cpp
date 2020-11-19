@@ -100,33 +100,79 @@ template<typename TFrom, typename TTo> static void
 // Convert src as required by the configuration
 // returns pointer to where the output is, could be different from source
 // Returns nullptr in case of errors
+// cfg->lut is always valid
 static void *convert_dt(const convert_conf *cfg, void *src) {
     // Partial implementation
-    void *result = nullptr; // Assume error
+    void *result = nullptr; // Assume error, set result to non-null otherwise
+
+// In place conversions, with LUT, when the output type is <= input type
+#define CONV(T_src, T_dst) conv_dt(cfg, reinterpret_cast<T_src *>(src), reinterpret_cast<T_dst *>(src)); result = src; break;
 
     switch (cfg->inraster.datatype) {
+    case GDT_Int32:
+        switch (cfg->raster.datatype) {
+        case GDT_Float: CONV(int32_t, float);
+        case GDT_UInt32: CONV(int32_t, uint32_t);
+        case GDT_Int32: CONV(int32_t, int32_t);
+        case GDT_UInt16: CONV(int32_t, uint16_t);
+        case GDT_Int16: CONV(int32_t, int16_t);
+        case GDT_Byte: CONV(int32_t, uint8_t);
+        default:;
+        }
+        break;
+    case GDT_UInt32:
+        switch (cfg->raster.datatype) {
+        case GDT_Float: CONV(uint32_t, float);
+        case GDT_UInt32: CONV(uint32_t, uint32_t);
+        case GDT_Int32: CONV(uint32_t, int32_t);
+        case GDT_UInt16: CONV(uint32_t, uint16_t);
+        case GDT_Int16: CONV(uint32_t, int16_t);
+        case GDT_Byte: CONV(uint32_t, uint8_t);
+        default:;
+        }
+        break;
+    case GDT_Int16:
+        switch (cfg->raster.datatype) {
+        case GDT_UInt16: CONV(int16_t, uint16_t);
+        case GDT_Int16: CONV(int16_t, int16_t);
+        case GDT_Byte: CONV(int16_t, uint8_t);
+        default:;
+        }
+        break;
     case GDT_UInt16:
         switch (cfg->raster.datatype) {
-        case GDT_Byte:
-            // Can be done in place
-            conv_dt(cfg, reinterpret_cast<uint16_t *>(src), reinterpret_cast<uint8_t *>(src));
-            result = src;
-            break;
+        case GDT_UInt16: CONV(uint16_t, uint16_t);
+        case GDT_Int16: CONV(uint16_t, int16_t);
+        case GDT_Byte: CONV(uint16_t, uint8_t);
         default:;
         }
         break;
     case GDT_Byte:
         switch (cfg->raster.datatype) {
-        case GDT_Byte:
-            // Can be done in place
-            conv_dt(cfg, reinterpret_cast<uint8_t *>(src), reinterpret_cast<uint8_t *>(src));
-            result = src;
-            break;
+        case GDT_Byte: CONV(uint8_t, uint8_t);
         default:;
         }
         break;
+    case GDT_Float:
+        switch (cfg->raster.datatype) {
+        case GDT_Float: CONV(float, float);
+        case GDT_UInt32: CONV(float, uint32_t);
+        case GDT_Int32: CONV(float, int32_t);
+        case GDT_UInt16: CONV(float, uint16_t);
+        case GDT_Int16: CONV(float, int16_t);
+        case GDT_Byte: CONV(float, uint8_t);
+        default:;
+        }
     default:;
     }
+
+#undef CONV
+
+    // If the conversion wasn't done, it can't be done in place
+    if (result == nullptr) {
+        // TODO: allocate a destinaton buffer and do the conversion to that buffer
+    }
+
     return result;
 }
 
@@ -151,7 +197,7 @@ static int handler(request_rec *r)
 
     // This is a request to be handled here
 
-    // This is a server configuration error
+    // server configuration error ?
     SERVER_ERR_IF(!ap_get_output_filter_handle("Receive"),
         r, "mod_receive not found");
 
@@ -278,7 +324,7 @@ static int handler(request_rec *r)
 
     storage_manager raw(buffer, pagesize);
 
-    // LUT presence implies a data conversion
+    // LUT presence implies a data conversion, otherwise the source is ready
     if (cfg->lut) {
         buffer = convert_dt(cfg, buffer);
         SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
@@ -311,8 +357,7 @@ static int handler(request_rec *r)
     return sendImage(r, dst, "image/png");
 }
 
-static void *create_dir_config(apr_pool_t *p, char * /* path */)
-{
+static void *create_dir_config(apr_pool_t *p, char * /* path */) {
     convert_conf *c = reinterpret_cast<convert_conf *>(apr_pcalloc(p, sizeof(convert_conf)));
     return c;
 }
@@ -410,8 +455,7 @@ static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *patte
 }
 
 // Directive: Convert
-static const char *check_config(cmd_parms *cmd, convert_conf *c, const char *value)
-{
+static const char *check_config(cmd_parms *cmd, convert_conf *c, const char *value) {
     // Check the basic requirements
     if (!c->source)
         return "Convert_Source directive is required";
