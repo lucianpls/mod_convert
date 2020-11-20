@@ -6,9 +6,6 @@
 * (C) Lucian Plesea 2018-2020
 */
 
-// #include <tuple>
-// #include <vector>
-
 #include <ahtse.h>
 
 #include <http_main.h>
@@ -16,15 +13,7 @@
 #include <http_core.h>
 #include <http_request.h>
 #include <http_log.h>
-
 #include <apr_strings.h>
-
-// From mod_receive
-#include <receive_context.h>
-
-// Standard headers
-#include <cstdint>
-#include <unordered_map>
 
 NS_AHTSE_USE
 
@@ -169,8 +158,8 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
 #undef CONV
 
     // If the conversion wasn't done, it can't be done in place
+    // TODO: allocate a destinaton buffer and do the conversion to that buffer
     if (result == nullptr) {
-        // TODO: allocate a destinaton buffer and do the conversion to that buffer
     }
 
     return result;
@@ -234,69 +223,44 @@ static int handler(request_rec *r)
     // Convert to true input level
     tile.l -= cfg->inraster.skip;
 
-    // Incoming tile buffer
-    receive_ctx rctx;
-    rctx.maxsize = static_cast<int>(cfg->max_input_size);
-    rctx.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, rctx.maxsize));
-
     // Create the subrequest
-    char *sub_uri = apr_pstrcat(r->pool, cfg->source,
-        apr_psprintf(r->pool, tile.z ? "%d/%d/%d/%d" : "/%d/%d/%d",
-            static_cast<int>(tile.z), static_cast<int>(tile.l),
-            static_cast<int>(tile.y), static_cast<int>(tile.x)),
-        cfg->suffix, NULL);
 
-    request_rec *sr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
-
-    const char *user_agent = apr_table_get(r->headers_in, "User-Agent");
+    const char* user_agent = apr_table_get(r->headers_in, "User-Agent");
     user_agent = (nullptr == user_agent) ?
         USER_AGENT : apr_pstrcat(r->pool, USER_AGENT ", ", user_agent, NULL);
-    apr_table_setn(sr->headers_in, "User-Agent", user_agent);
+    char* sub_uri = tile_url(r->pool, cfg->source, tile, cfg->suffix);
+    subr subreq(r);
+    subreq.agent = user_agent;
+    LOG(r, "Requesting %s", sub_uri);
 
-    rctx.size = 0;
-    // Start hooking up the input
-    ap_filter_t *rf = ap_add_output_filter("Receive", &rctx, sr, sr->connection);
+    storage_manager src;
+    src.size = static_cast<int>(cfg->max_input_size);
+    src.buffer = reinterpret_cast<char*>(apr_palloc(r->pool, src.size));
 
-    int rr_status = ap_run_sub_req(sr);
-    ap_remove_output_filter(rf);
+    auto status = subreq.fetch(sub_uri, src);
+    
+    if (status != APR_SUCCESS) {
+        LOGNOTE(r, "Receive failed with code %d for %s", status, sub_uri);
+        return HTTP_NOT_FOUND == status ? sendEmptyTile(r, cfg->raster.missing) : status;
+    }
 
-    // Get a copy of the source ETag, otherwise it goes away with the subrequest
-    const char *sETag = apr_table_get(sr->headers_out, "ETag");
-    if (sETag != nullptr)
-        sETag = apr_pstrdup(r->pool, sETag);
-
-    ap_destroy_sub_req(sr);
-    if (rr_status != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_NOTICE, rr_status, r,
-            "Receive failed with code %d for %s", rr_status, sub_uri);
-        return sendEmptyTile(r, cfg->raster.missing);
+    // Etag is not modified, just passes through
+    // remember to set the output etag later
+    if (etagMatches(r, subreq.ETag.c_str())) {
+        apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
+        return HTTP_NOT_MODIFIED;
     }
 
     // If the input tile is the empty tile, send the output empty tile right now
+
     apr_uint64_t seed = 0;
     int missing = 0;
-    if (sETag != nullptr) {
-        seed = base32decode(sETag, &missing);
-        if (missing || !ap_cstr_casecmp(sETag, cfg->inraster.missing.eTag))
-            return sendEmptyTile(r, cfg->raster.missing);
-    }
-
-    // Input wasn't missing, compute an ETag, there is only one input ETag to use
-    seed ^= cfg->raster.seed;
-    if (seed == cfg->raster.seed) // Likely the input didn't provide an ETag
-    { // Use some of the input bytes to make a better hash
-        const int values = 32;
-        seed = cfg->raster.seed;
-        for (int i = 0; i < values; i++)
-            seed ^= ((apr_uint64_t)rctx.buffer[(rctx.size / values) * i]) << ((i * 8) % 64);
-    }
-
-    char ETag[16];
-    tobase32(seed, ETag);
-    if (etagMatches(r, ETag))
-        return HTTP_NOT_MODIFIED;
+    seed = base32decode(subreq.ETag.c_str(), &missing);
+    if (subreq.ETag == cfg->inraster.missing.eTag)
+        return sendEmptyTile(r, cfg->raster.missing);
 
     // What format is the source, and what is the compression we want?
+
     apr_uint32_t in_format;
     memcpy(&in_format, rctx.buffer, 4);
 
@@ -355,11 +319,6 @@ static int handler(request_rec *r)
 
     apr_table_set(r->headers_out, "ETag", ETag);
     return sendImage(r, dst, "image/png");
-}
-
-static void *create_dir_config(apr_pool_t *p, char * /* path */) {
-    convert_conf *c = reinterpret_cast<convert_conf *>(apr_pcalloc(p, sizeof(convert_conf)));
-    return c;
 }
 
 // Reads a sequence of in:out floating point pairs, separated by commas.
@@ -450,24 +409,6 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     return nullptr;
 }
 
-static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *pattern) {
-    return add_regexp_to_array(cmd->pool, &c->arr_rxp, pattern);
-}
-
-// Directive: Convert
-static const char *check_config(cmd_parms *cmd, convert_conf *c, const char *value) {
-    // Check the basic requirements
-    if (!c->source)
-        return "Convert_Source directive is required";
-
-    // Dump the configuration in a string and return it, debug help
-    if (!apr_strnatcasecmp(value, "verbose")) {
-        return "Unimplemented";
-    }
-
-    return nullptr;
-}
-
 static const command_rec cmds[] =
 {
     AP_INIT_TAKE2(
@@ -480,7 +421,7 @@ static const command_rec cmds[] =
 
     AP_INIT_TAKE1(
         "Convert_RegExp",
-        (cmd_func) set_regexp,
+        (cmd_func) set_regexp<convert_conf>,
         0, // user_data
         ACCESS_CONF, // availability
         "Regular expression for triggering mod_convert"
@@ -502,15 +443,6 @@ static const command_rec cmds[] =
         "If set, the module does not respond to external requests, only to internal redirects"
     ),
 
-    AP_INIT_TAKE1(
-        "Convert",
-        (cmd_func)check_config,
-        0,
-        ACCESS_CONF,
-        "On to check the configuration, it should be the last Reproject directive in a given location."
-        " Setting it to verbose will dump the configuration"
-    ),
-
     { NULL }
 };
 
@@ -520,7 +452,7 @@ static void register_hooks(apr_pool_t *p) {
 
 module AP_MODULE_DECLARE_DATA convert_module = {
     STANDARD20_MODULE_STUFF,
-    create_dir_config,
+    pcreate< convert_conf>,
     NULL, // dir merge
     NULL, // server config
     NULL, // server merge
