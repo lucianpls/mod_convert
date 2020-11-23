@@ -256,49 +256,39 @@ static int handler(request_rec *r)
     apr_uint64_t seed = 0;
     int missing = 0;
     seed = base32decode(subreq.ETag.c_str(), &missing);
-    if (subreq.ETag == cfg->inraster.missing.eTag)
+    if (missing && subreq.ETag == cfg->inraster.missing.eTag)
         return sendEmptyTile(r, cfg->raster.missing);
 
-    // What format is the source, and what is the compression we want?
-
-    apr_uint32_t in_format;
-    memcpy(&in_format, rctx.buffer, 4);
-
-    codec_params params;
-    memset(&params, 0, sizeof(params));
-    int pixel_size = GDTGetSize(cfg->inraster.datatype);
-    int input_line_width = static_cast<int>(
-        cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
-    int pagesize = static_cast<int>(input_line_width * cfg->inraster.pagesize.y);
-    params.line_stride = input_line_width;
-    storage_manager src(rctx.buffer, rctx.size);
-    void *buffer = apr_pcalloc(r->pool, pagesize);
-
-    if (JPEG_SIG == in_format)
-        message = jpeg_stride_decode(params, src, buffer);
-    else // format error
-        message = "Unsupported input format";
+    codec_params params(cfg->inraster);
+    storage_manager raw;
+    raw.size = static_cast<int>(params.min_buffer_size());
+    raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, static_cast<size_t>(raw.size)));
+    // Accept any kind of input
+    message = stride_decode(params, src, raw.buffer);
 
     if (message) {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "raster type is %d size %d", 
-            static_cast<int>(cfg->inraster.datatype), pixel_size);
+            static_cast<int>(cfg->inraster.datatype), static_cast<int>(params.min_buffer_size()));
         return HTTP_NOT_FOUND;
     }
 
-    storage_manager raw(buffer, pagesize);
 
     // LUT presence implies a data conversion, otherwise the source is ready
+    void* buffer = raw.buffer;
     if (cfg->lut) {
         buffer = convert_dt(cfg, buffer);
         SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
         raw.buffer = reinterpret_cast<char *>(buffer);
-        params.modified = 1; // Force PNG out when converting type
+        params.modified = 1;
     }
 
     // This part is only for converting Zen JPEGs to JPNG, as needed
-    if (JPEG_SIG == in_format && params.modified == 0) // Zen mask absent or superfluous
+    if (IMG_JPEG == params.format && params.modified == 0) {
+        // Zen mask absent or superfluous, just send the input
+        apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
         return sendImage(r, src, "image/jpeg");
+    }
 
     png_params out_params;
     set_png_params(cfg->raster, &out_params);
@@ -308,7 +298,7 @@ static int handler(request_rec *r)
     if (params.modified)
         out_params.has_transparency = true;
 
-
+    // Build the output image
     storage_manager dst(
         apr_palloc(r->pool, cfg->max_input_size),
         cfg->max_input_size);
@@ -317,8 +307,9 @@ static int handler(request_rec *r)
     message = png_encode(out_params, raw, dst);
     SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
 
-    apr_table_set(r->headers_out, "ETag", ETag);
+    apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
     return sendImage(r, dst, "image/png");
+
 }
 
 // Reads a sequence of in:out floating point pairs, separated by commas.
