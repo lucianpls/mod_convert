@@ -263,7 +263,9 @@ static int handler(request_rec *r)
     storage_manager raw;
     raw.size = static_cast<int>(params.min_buffer_size());
     raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, static_cast<size_t>(raw.size)));
-    // Accept any kind of input
+    SERVER_ERR_IF(raw.buffer == nullptr, r, "Memmory allocation error");
+
+    // Accept any input format
     message = stride_decode(params, src, raw.buffer);
 
     if (message) {
@@ -290,26 +292,44 @@ static int handler(request_rec *r)
         return sendImage(r, src, "image/jpeg");
     }
 
-    png_params out_params;
-    set_png_params(cfg->raster, &out_params);
-
-    // By default the NDV is zero, and the NVD field is zero
-    // Check one more time that we had a Zen mask before turning the transparency on
-    if (params.modified)
-        out_params.has_transparency = true;
-
-    // Build the output image
+    // Space for the output image
     storage_manager dst(
         apr_palloc(r->pool, cfg->max_input_size),
         cfg->max_input_size);
     SERVER_ERR_IF(dst.buffer == nullptr, r, "Memmory allocation error");
+    // output mime type
+    const char* out_mime = "image/jpeg"; // Default
 
-    message = png_encode(out_params, raw, dst);
-    SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+    switch (cfg->raster.format) {
+    case IMG_PNG: {
+        png_params out_params;
+        set_png_params(cfg->raster, &out_params);
+
+        // By default the NDV is zero, and the NVD field is zero
+        // Check one more time that we had a Zen mask before turning the transparency on
+        if (params.modified)
+            out_params.has_transparency = true;
+
+        message = png_encode(out_params, raw, dst);
+        SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+        out_mime = "image/png";
+        break;
+    }
+    case IMG_LERC: {
+        lerc_params out_params;
+        set_lerc_params(cfg->raster, &out_params);
+
+        message = lerc_encode(out_params, raw, dst);
+        SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+        out_mime = "raster/lerc";
+        break;
+    }
+    default:
+        SERVER_ERR_IF(true, r, "Output format not implemented, from %s", r->uri);
+    }
 
     apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
-    return sendImage(r, dst, "image/png");
-
+    return sendImage(r, dst, out_mime);
 }
 
 // Reads a sequence of in:out floating point pairs, separated by commas.
