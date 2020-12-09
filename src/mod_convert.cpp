@@ -253,9 +253,8 @@ static int handler(request_rec *r)
 
     // If the input tile is the empty tile, send the output empty tile right now
 
-    apr_uint64_t seed = 0;
     int missing = 0;
-    seed = base32decode(subreq.ETag.c_str(), &missing);
+    base32decode(subreq.ETag.c_str(), &missing);
     if (missing && subreq.ETag == cfg->inraster.missing.eTag)
         return sendEmptyTile(r, cfg->raster.missing);
 
