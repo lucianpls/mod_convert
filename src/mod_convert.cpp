@@ -300,6 +300,9 @@ static int handler(request_rec *r)
     const char* out_mime = "image/jpeg"; // Default
 
     switch (cfg->raster.format) {
+    case IMG_ANY:
+    case IMG_JPEG:
+        // TODO: Something here
     case IMG_PNG: {
         png_params out_params;
         set_png_params(cfg->raster, &out_params);
