@@ -6,9 +6,6 @@
 * (C) Lucian Plesea 2018-2020
 */
 
-// #include <tuple>
-// #include <vector>
-
 #include <ahtse.h>
 
 #include <http_main.h>
@@ -16,19 +13,12 @@
 #include <http_core.h>
 #include <http_request.h>
 #include <http_log.h>
-
 #include <apr_strings.h>
-
-// From mod_receive
-#include <receive_context.h>
-
-// Standard headers
-#include <cstdint>
-#include <unordered_map>
 
 NS_AHTSE_USE
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
+#define USER_AGENT "AHTSE Convert"
 
 #if defined(APLOG_USE_MODULE)
 APLOG_USE_MODULE(convert);
@@ -62,18 +52,6 @@ struct convert_conf {
 };
 
 using namespace std;
-
-// mapping of mime-types to known formats
-// mime types, subtypes and parameters are case insensitive
-static unordered_map<const char *, img_fmt> formats = {
-    {"image/jpeg", IMG_JPEG},
-    {"image/png", IMG_PNG},
-    // TODO: This one is not right at all.  Proper media types seem to require a full parser
-    // Also, the parameter is in key=value format, with the key being case insensitive
-    // There is also the issue of where white-spaces are allowed
-    {"image/jpeg; zen=true", IMG_JPEG_ZEN}
-};
-
 
 // Converstion of src from TFrom to TTo, as required by the configuration
 template<typename TFrom, typename TTo> static void 
@@ -109,38 +87,83 @@ template<typename TFrom, typename TTo> static void
 }
 
 // Convert src as required by the configuration
+// returns pointer to where the output is, could be different from source
 // Returns nullptr in case of errors
+// cfg->lut is always valid
 static void *convert_dt(const convert_conf *cfg, void *src) {
     // Partial implementation
-    void *result = nullptr; // Assume error
+    void *result = nullptr; // Assume error, set result to non-null otherwise
+
+// In place conversions, with LUT, when the output type is <= input type
+#define CONV(T_src, T_dst) conv_dt(cfg, reinterpret_cast<T_src *>(src), reinterpret_cast<T_dst *>(src)); result = src; break;
 
     switch (cfg->inraster.datatype) {
+    case GDT_Int32:
+        switch (cfg->raster.datatype) {
+        case GDT_Float: CONV(int32_t, float);
+        case GDT_UInt32: CONV(int32_t, uint32_t);
+        case GDT_Int32: CONV(int32_t, int32_t);
+        case GDT_UInt16: CONV(int32_t, uint16_t);
+        case GDT_Int16: CONV(int32_t, int16_t);
+        case GDT_Byte: CONV(int32_t, uint8_t);
+        default:;
+        }
+        break;
+    case GDT_UInt32:
+        switch (cfg->raster.datatype) {
+        case GDT_Float: CONV(uint32_t, float);
+        case GDT_UInt32: CONV(uint32_t, uint32_t);
+        case GDT_Int32: CONV(uint32_t, int32_t);
+        case GDT_UInt16: CONV(uint32_t, uint16_t);
+        case GDT_Int16: CONV(uint32_t, int16_t);
+        case GDT_Byte: CONV(uint32_t, uint8_t);
+        default:;
+        }
+        break;
+    case GDT_Int16:
+        switch (cfg->raster.datatype) {
+        case GDT_UInt16: CONV(int16_t, uint16_t);
+        case GDT_Int16: CONV(int16_t, int16_t);
+        case GDT_Byte: CONV(int16_t, uint8_t);
+        default:;
+        }
+        break;
     case GDT_UInt16:
         switch (cfg->raster.datatype) {
-        case GDT_Byte:
-            // Can be done in place
-            conv_dt(cfg, reinterpret_cast<uint16_t *>(src), reinterpret_cast<uint8_t *>(src));
-            result = src;
-            break;
+        case GDT_UInt16: CONV(uint16_t, uint16_t);
+        case GDT_Int16: CONV(uint16_t, int16_t);
+        case GDT_Byte: CONV(uint16_t, uint8_t);
         default:;
         }
         break;
     case GDT_Byte:
         switch (cfg->raster.datatype) {
-        case GDT_Byte:
-            // Can be done in place
-            conv_dt(cfg, reinterpret_cast<uint8_t *>(src), reinterpret_cast<uint8_t *>(src));
-            result = src;
-            break;
+        case GDT_Byte: CONV(uint8_t, uint8_t);
         default:;
         }
         break;
+    case GDT_Float:
+        switch (cfg->raster.datatype) {
+        case GDT_Float: CONV(float, float);
+        case GDT_UInt32: CONV(float, uint32_t);
+        case GDT_Int32: CONV(float, int32_t);
+        case GDT_UInt16: CONV(float, uint16_t);
+        case GDT_Int16: CONV(float, int16_t);
+        case GDT_Byte: CONV(float, uint8_t);
+        default:;
+        }
     default:;
     }
+
+#undef CONV
+
+    // If the conversion wasn't done, it can't be done in place
+    // TODO: allocate a destinaton buffer and do the conversion to that buffer
+    if (result == nullptr) {
+    }
+
     return result;
 }
-
-#define USER_AGENT "AHTSE Convert"
 
 static int handler(request_rec *r)
 {
@@ -163,7 +186,7 @@ static int handler(request_rec *r)
 
     // This is a request to be handled here
 
-    // This is a server configuration error
+    // server configuration error ?
     SERVER_ERR_IF(!ap_get_output_filter_handle("Receive"),
         r, "mod_receive not found");
 
@@ -194,150 +217,121 @@ static int handler(request_rec *r)
     // Same is true for outside of input bounds
     if (tile.l >= cfg->inraster.n_levels ||
         tile.x >= cfg->inraster.rsets[tile.l].w ||
-        tile.y >= cfg->inraster.rsets[tile.l].w)
+        tile.y >= cfg->inraster.rsets[tile.l].h)
         return sendEmptyTile(r, cfg->raster.missing);
 
-    // Convert to input level
+    // Convert to true input level
     tile.l -= cfg->inraster.skip;
 
-    // Incoming tile buffer
-    receive_ctx rctx;
-    rctx.maxsize = static_cast<int>(cfg->max_input_size);
-    rctx.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, rctx.maxsize));
-
     // Create the subrequest
-    char *sub_uri = apr_pstrcat(r->pool,
-        cfg->source,
-        (tile.z == 0) ?
-        apr_psprintf(r->pool, "/%d/%d/%d",
-            static_cast<int>(tile.l),
-            static_cast<int>(tile.y),
-            static_cast<int>(tile.x)) :
-        apr_psprintf(r->pool, "/%d/%d/%d/%d",
-            static_cast<int>(tile.z),
-            static_cast<int>(tile.l),
-            static_cast<int>(tile.y),
-            static_cast<int>(tile.x)),
-        cfg->suffix,
-        NULL);
 
-    request_rec *sr = ap_sub_req_lookup_uri(sub_uri, r, r->output_filters);
-
-    const char *user_agent = apr_table_get(r->headers_in, "User-Agent");
+    const char* user_agent = apr_table_get(r->headers_in, "User-Agent");
     user_agent = (nullptr == user_agent) ?
         USER_AGENT : apr_pstrcat(r->pool, USER_AGENT ", ", user_agent, NULL);
-    apr_table_setn(sr->headers_in, "User-Agent", user_agent);
+    char* sub_uri = tile_url(r->pool, cfg->source, tile, cfg->suffix);
+    subr subreq(r);
+    subreq.agent = user_agent;
+    LOG(r, "Requesting %s", sub_uri);
 
-    rctx.size = 0;
-    // Start hooking up the input
-    ap_filter_t *rf = ap_add_output_filter("Receive", &rctx, sr, sr->connection);
+    storage_manager src;
+    src.size = static_cast<int>(cfg->max_input_size);
+    src.buffer = reinterpret_cast<char*>(apr_palloc(r->pool, src.size));
 
-    int rr_status = ap_run_sub_req(sr);
-    ap_remove_output_filter(rf);
+    auto status = subreq.fetch(sub_uri, src);
+    
+    if (status != APR_SUCCESS) {
+        LOGNOTE(r, "Receive failed with code %d for %s", status, sub_uri);
+        return HTTP_NOT_FOUND == status ? sendEmptyTile(r, cfg->raster.missing) : status;
+    }
 
-    // Get a copy of the source ETag, otherwise it goes away with the subrequest
-    const char *sETag = apr_table_get(sr->headers_out, "ETag");
-    if (sETag != nullptr)
-        sETag = apr_pstrdup(r->pool, sETag);
-
-    ap_destroy_sub_req(sr);
-    if (rr_status != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_NOTICE, rr_status, r,
-            "Receive failed with code %d for %s", rr_status, sub_uri);
-        return sendEmptyTile(r, cfg->raster.missing);
+    // Etag is not modified, just passes through
+    // remember to set the output etag later
+    if (etagMatches(r, subreq.ETag.c_str())) {
+        apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
+        return HTTP_NOT_MODIFIED;
     }
 
     // If the input tile is the empty tile, send the output empty tile right now
-    apr_uint64_t seed = 0;
+
     int missing = 0;
-    if (sETag != nullptr) {
-        seed = base32decode(sETag, &missing);
-        if (missing || !ap_cstr_casecmp(sETag, cfg->inraster.missing.eTag))
-            return sendEmptyTile(r, cfg->raster.missing);
-    }
+    base32decode(subreq.ETag.c_str(), &missing);
+    if (missing && subreq.ETag == cfg->inraster.missing.eTag)
+        return sendEmptyTile(r, cfg->raster.missing);
 
-    // Input wasn't missing, compute an ETag, there is only one input ETag to use
-    seed ^= cfg->raster.seed;
-    if (seed == cfg->raster.seed) // Likely the input didn't provide an ETag
-    { // Use some of the input bytes to make a better hash
-        const int values = 32;
-        seed = cfg->raster.seed;
-        for (int i = 0; i < values; i++)
-            seed ^= ((apr_uint64_t)rctx.buffer[(rctx.size / values) * i]) << ((i * 8) % 64);
-    }
+    codec_params params(cfg->inraster);
+    storage_manager raw;
+    raw.size = static_cast<int>(params.min_buffer_size());
+    raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, static_cast<size_t>(raw.size)));
+    SERVER_ERR_IF(raw.buffer == nullptr, r, "Memmory allocation error");
 
-    char ETag[16];
-    tobase32(seed, ETag);
-    if (etagMatches(r, ETag))
-        return HTTP_NOT_MODIFIED;
-
-    // What format is the source, and what is the compression we want?
-    apr_uint32_t in_format;
-    memcpy(&in_format, rctx.buffer, 4);
-
-    codec_params params;
-    memset(&params, 0, sizeof(params));
-    int pixel_size = GDTGetSize(cfg->inraster.datatype);
-    int input_line_width = static_cast<int>(
-        cfg->inraster.pagesize.x *  cfg->inraster.pagesize.c * pixel_size);
-    int pagesize = static_cast<int>(input_line_width * cfg->inraster.pagesize.y);
-    params.line_stride = input_line_width;
-    storage_manager src(rctx.buffer, rctx.size);
-    void *buffer = apr_pcalloc(r->pool, pagesize);
-
-    if (JPEG_SIG == in_format) {
-        message = jpeg_stride_decode(params, cfg->inraster, src, buffer);
-    } 
-    else { // format error
-        message = "Unsupported input format";
-    }
+    // Accept any input format
+    message = stride_decode(params, src, raw.buffer);
 
     if (message) {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "raster type is %d size %d", 
-            static_cast<int>(cfg->inraster.datatype), pixel_size);
+            static_cast<int>(cfg->inraster.datatype), static_cast<int>(params.min_buffer_size()));
         return HTTP_NOT_FOUND;
     }
 
-    storage_manager raw(buffer, pagesize);
 
-    // LUT presence implies a data conversion
+    // LUT presence implies a data conversion, otherwise the source is ready
+    void* buffer = raw.buffer;
     if (cfg->lut) {
         buffer = convert_dt(cfg, buffer);
         SERVER_ERR_IF(buffer == nullptr, r, "Conversion error, likely not implemented");
         raw.buffer = reinterpret_cast<char *>(buffer);
-        params.modified = 1; // Force PNG out when converting type
+        params.modified = 1;
     }
 
     // This part is only for converting Zen JPEGs to JPNG, as needed
-    if (JPEG_SIG == in_format && params.modified == 0) // Zen mask absent or superfluous
+    if (IMG_JPEG == params.format && params.modified == 0) {
+        // Zen mask absent or superfluous, just send the input
+        apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
         return sendImage(r, src, "image/jpeg");
+    }
 
-    png_params out_params;
-    set_def_png_params(cfg->raster, &out_params);
-
-    // By default the NDV is zero, and the NVD field is zero
-    // Check one more time that we had a Zen mask before turning the transparency on
-    if (params.modified)
-        out_params.has_transparency = true;
-
-
+    // Space for the output image
     storage_manager dst(
         apr_palloc(r->pool, cfg->max_input_size),
         cfg->max_input_size);
     SERVER_ERR_IF(dst.buffer == nullptr, r, "Memmory allocation error");
+    // output mime type
+    const char* out_mime = "image/jpeg"; // Default
 
-    message = png_encode(out_params, cfg->raster, raw, dst);
-    SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+    switch (cfg->raster.format) {
+    case IMG_ANY:
+    case IMG_JPEG:
+        // TODO: Something here
+    case IMG_PNG: {
+        png_params out_params;
+        set_png_params(cfg->raster, &out_params);
 
-    apr_table_set(r->headers_out, "ETag", ETag);
-    return sendImage(r, dst, "image/png");
-}
+        // By default the NDV is zero, and the NVD field is zero
+        // Check one more time that we had a Zen mask before turning the transparency on
+        if (params.modified)
+            out_params.has_transparency = true;
 
-static void *create_dir_config(apr_pool_t *p, char * /* path */)
-{
-    convert_conf *c = reinterpret_cast<convert_conf *>(apr_pcalloc(p, sizeof(convert_conf)));
-    return c;
+        message = png_encode(out_params, raw, dst);
+        SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+        out_mime = "image/png";
+        break;
+    }
+    case IMG_LERC: {
+        lerc_params out_params;
+        set_lerc_params(cfg->raster, &out_params);
+
+        message = lerc_encode(out_params, raw, dst);
+        SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+        out_mime = "raster/lerc";
+        break;
+    }
+    default:
+        SERVER_ERR_IF(true, r, "Output format not implemented, from %s", r->uri);
+    }
+
+    apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
+    return sendImage(r, dst, out_mime);
 }
 
 // Reads a sequence of in:out floating point pairs, separated by commas.
@@ -428,25 +422,6 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
     return nullptr;
 }
 
-static const char *set_regexp(cmd_parms *cmd, convert_conf *c, const char *pattern) {
-    return add_regexp_to_array(cmd->pool, &c->arr_rxp, pattern);
-}
-
-// Directive: Convert
-static const char *check_config(cmd_parms *cmd, convert_conf *c, const char *value)
-{
-    // Check the basic requirements
-    if (!c->source)
-        return "Convert_Source directive is required";
-
-    // Dump the configuration in a string and return it, debug help
-    if (!apr_strnatcasecmp(value, "verbose")) {
-        return "Unimplemented";
-    }
-
-    return nullptr;
-}
-
 static const command_rec cmds[] =
 {
     AP_INIT_TAKE2(
@@ -459,7 +434,7 @@ static const command_rec cmds[] =
 
     AP_INIT_TAKE1(
         "Convert_RegExp",
-        (cmd_func) set_regexp,
+        (cmd_func) set_regexp<convert_conf>,
         0, // user_data
         ACCESS_CONF, // availability
         "Regular expression for triggering mod_convert"
@@ -481,15 +456,6 @@ static const command_rec cmds[] =
         "If set, the module does not respond to external requests, only to internal redirects"
     ),
 
-    AP_INIT_TAKE1(
-        "Convert",
-        (cmd_func)check_config,
-        0,
-        ACCESS_CONF,
-        "On to check the configuration, it should be the last Reproject directive in a given location."
-        " Setting it to verbose will dump the configuration"
-    ),
-
     { NULL }
 };
 
@@ -499,7 +465,7 @@ static void register_hooks(apr_pool_t *p) {
 
 module AP_MODULE_DECLARE_DATA convert_module = {
     STANDARD20_MODULE_STUFF,
-    create_dir_config,
+    pcreate< convert_conf>,
     NULL, // dir merge
     NULL, // server config
     NULL, // server merge
