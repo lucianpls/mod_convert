@@ -274,7 +274,6 @@ static int handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
-
     // LUT presence implies a data conversion, otherwise the source is ready
     void* buffer = raw.buffer;
     if (cfg->lut) {
@@ -292,9 +291,7 @@ static int handler(request_rec *r)
     }
 
     // Space for the output image
-    storage_manager dst(
-        apr_palloc(r->pool, cfg->max_input_size),
-        cfg->max_input_size);
+    storage_manager dst(apr_palloc(r->pool, cfg->max_input_size), cfg->max_input_size);
     SERVER_ERR_IF(dst.buffer == nullptr, r, "Memmory allocation error");
     // output mime type
     const char* out_mime = "image/jpeg"; // Default
@@ -337,7 +334,7 @@ static int handler(request_rec *r)
 // Reads a sequence of in:out floating point pairs, separated by commas.
 // Input values should be in increasing order
 // Might need "C" locale
-static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
+static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut, int isint = true) {
     char *lut_string = apr_pstrdup(cmd->temp_pool, lut);
     char *last = nullptr;
     char *token = apr_strtok(lut_string, ",", &last);
@@ -349,6 +346,8 @@ static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
     apr_array_header_t *arr = apr_array_make(cmd->pool, 12, sizeof(double));
 
     char *sep=nullptr;
+    // Use 0.5 bias for integer output types
+    double bias = isint ? 0.5 : 0;
     while (token != nullptr) {
         double value_in = strtod(token, &sep);
         if (*sep++ != ':')
@@ -356,8 +355,7 @@ static const char *read_lut(cmd_parms *cmd, convert_conf *c, const char *lut) {
         if (arr->nelts > 1 && APR_ARRAY_IDX(arr, arr->nelts - 2, double) >= value_in)
             return "Incorrect LUT, input values should be increasing";
 
-        // 0.5 is rounding correction for integer types
-        double value_out = strtod(sep, &sep) + 0.5;
+        double value_out = strtod(sep, &sep) + bias;
         if (*sep != 0)
             return apr_psprintf(cmd->temp_pool, 
                 "Extra characters in LUT token %s", token);
@@ -412,7 +410,7 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
 
     // Single band, comma separated in:out value pairs
     if (nullptr != (line = apr_table_get(kvp, "LUT")) &&
-        (err_message = read_lut(cmd, c, line)))
+        (err_message = read_lut(cmd, c, line, c->raster.datatype < GDT_Float32)))
         return err_message;
 
     if (c->raster.datatype != c->inraster.datatype &&
