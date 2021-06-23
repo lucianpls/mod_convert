@@ -14,7 +14,7 @@ LIBS = -L$(DEST) -lahtse -lstdc++
 
 FILES = $(C_SRC) $(HEADERS)
 
-# Create a file Makefile.lcl. It should define INCLUDES and MOD_PATH
+# Create a file Makefile.lcl. It should define EXTRA_INCLUDES and DEST
 # For example on how to create Makefile.lcl see Makefile.example.lcl
 
 include Makefile.lcl
@@ -28,10 +28,10 @@ $(TARGET)	:	$(OBJECTS)
 	$(LIBTOOL) --mode=link g++ -o $(MODULE).la -rpath $(DEST) -module -avoid-version $^ $(LIBS)
 
 %.lo	:	%.cpp
-	$(LIBTOOL) --mode=compile g++ -std=c++0x $(CXXFLAGS) $(DEFINES) $(INCLUDES) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
+	$(LIBTOOL) --mode=compile g++ $(CXXFLAGS) $(DEFINES) $(EXTRA_INCLUDES) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
 
 install	:	$(TARGET)
-	$(SUDO)	cp $(TARGET)	$(DEST)
+	$(SUDO)	$(CP) $(TARGET)	$(DEST)
 
 clean	:
-	rm -rf $(TARGET) $(OBJECTS) .libs *.o *.lo *.slo *.la
+	$(RM) -r .libs *.o *.lo *.slo *.la
