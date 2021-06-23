@@ -1,6 +1,8 @@
-INCLUDES = -I /usr/include/httpd -I /usr/include/apr-1
-DEST = /etc/httpd/modules
-HTTPD_INCLUDES_PATH = /usr/include/httpd
 APXS = apxs
-SUDO = sudo
-LIBTOOL = /usr/lib64/apr-1/build/libtool
+includedir = $(shell $(APXS) -q includedir 2>/dev/null)
+EXTRA_INCLUDES = $(shell $(APXS) -q EXTRA_INCLUDES 2>/dev/null)
+LIBTOOL = $(shell $(APXS) -q LIBTOOL 2>/dev/null)
+
+# SUDO = sudo
+CP = cp
+DEST = /etc/httpd/modules
