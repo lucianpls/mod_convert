@@ -98,58 +98,58 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
 #define CONV(T_src, T_dst) conv_dt(cfg, reinterpret_cast<T_src *>(src), reinterpret_cast<T_dst *>(src)); result = src; break;
 
     switch (cfg->inraster.datatype) {
-    case GDT_Int32:
+    case AHTSE_Int32:
         switch (cfg->raster.datatype) {
-        case GDT_Float: CONV(int32_t, float);
-        case GDT_UInt32: CONV(int32_t, uint32_t);
-        case GDT_Int32: CONV(int32_t, int32_t);
-        case GDT_UInt16: CONV(int32_t, uint16_t);
-        case GDT_Int16: CONV(int32_t, int16_t);
-        case GDT_Byte: CONV(int32_t, uint8_t);
+        case AHTSE_Float: CONV(int32_t, float);
+        case AHTSE_UInt32: CONV(int32_t, uint32_t);
+        case AHTSE_Int32: CONV(int32_t, int32_t);
+        case AHTSE_UInt16: CONV(int32_t, uint16_t);
+        case AHTSE_Int16: CONV(int32_t, int16_t);
+        case AHTSE_Byte: CONV(int32_t, uint8_t);
         default:;
         }
         break;
-    case GDT_UInt32:
+    case AHTSE_UInt32:
         switch (cfg->raster.datatype) {
-        case GDT_Float: CONV(uint32_t, float);
-        case GDT_UInt32: CONV(uint32_t, uint32_t);
-        case GDT_Int32: CONV(uint32_t, int32_t);
-        case GDT_UInt16: CONV(uint32_t, uint16_t);
-        case GDT_Int16: CONV(uint32_t, int16_t);
-        case GDT_Byte: CONV(uint32_t, uint8_t);
+        case AHTSE_Float: CONV(uint32_t, float);
+        case AHTSE_UInt32: CONV(uint32_t, uint32_t);
+        case AHTSE_Int32: CONV(uint32_t, int32_t);
+        case AHTSE_UInt16: CONV(uint32_t, uint16_t);
+        case AHTSE_Int16: CONV(uint32_t, int16_t);
+        case AHTSE_Byte: CONV(uint32_t, uint8_t);
         default:;
         }
         break;
-    case GDT_Int16:
+    case AHTSE_Int16:
         switch (cfg->raster.datatype) {
-        case GDT_UInt16: CONV(int16_t, uint16_t);
-        case GDT_Int16: CONV(int16_t, int16_t);
-        case GDT_Byte: CONV(int16_t, uint8_t);
+        case AHTSE_UInt16: CONV(int16_t, uint16_t);
+        case AHTSE_Int16: CONV(int16_t, int16_t);
+        case AHTSE_Byte: CONV(int16_t, uint8_t);
         default:;
         }
         break;
-    case GDT_UInt16:
+    case AHTSE_UInt16:
         switch (cfg->raster.datatype) {
-        case GDT_UInt16: CONV(uint16_t, uint16_t);
-        case GDT_Int16: CONV(uint16_t, int16_t);
-        case GDT_Byte: CONV(uint16_t, uint8_t);
+        case AHTSE_UInt16: CONV(uint16_t, uint16_t);
+        case AHTSE_Int16: CONV(uint16_t, int16_t);
+        case AHTSE_Byte: CONV(uint16_t, uint8_t);
         default:;
         }
         break;
-    case GDT_Byte:
+    case AHTSE_Byte:
         switch (cfg->raster.datatype) {
-        case GDT_Byte: CONV(uint8_t, uint8_t);
+        case AHTSE_Byte: CONV(uint8_t, uint8_t);
         default:;
         }
         break;
-    case GDT_Float:
+    case AHTSE_Float:
         switch (cfg->raster.datatype) {
-        case GDT_Float: CONV(float, float);
-        case GDT_UInt32: CONV(float, uint32_t);
-        case GDT_Int32: CONV(float, int32_t);
-        case GDT_UInt16: CONV(float, uint16_t);
-        case GDT_Int16: CONV(float, int16_t);
-        case GDT_Byte: CONV(float, uint8_t);
+        case AHTSE_Float: CONV(float, float);
+        case AHTSE_UInt32: CONV(float, uint32_t);
+        case AHTSE_Int32: CONV(float, int32_t);
+        case AHTSE_UInt16: CONV(float, uint16_t);
+        case AHTSE_Int16: CONV(float, int16_t);
+        case AHTSE_Byte: CONV(float, uint8_t);
         default:;
         }
     default:;
@@ -410,7 +410,7 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
 
     // Single band, comma separated in:out value pairs
     if (nullptr != (line = apr_table_get(kvp, "LUT")) &&
-        (err_message = read_lut(cmd, c, line, c->raster.datatype < GDT_Float32)))
+        (err_message = read_lut(cmd, c, line, c->raster.datatype < AHTSE_Float32)))
         return err_message;
 
     if (c->raster.datatype != c->inraster.datatype &&
