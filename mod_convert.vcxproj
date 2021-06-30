@@ -29,7 +29,7 @@
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="src\Makefile" />
-    <None Include="src\Makefile_lcl.example" />
+    <None Include="src\Makefile.lcl.example" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
