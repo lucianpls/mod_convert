@@ -7,7 +7,6 @@
 */
 
 #include <ahtse.h>
-
 #include <http_main.h>
 #include <http_protocol.h>
 #include <http_core.h>
@@ -16,6 +15,7 @@
 #include <apr_strings.h>
 
 NS_AHTSE_USE
+NS_ICD_USE
 
 extern module AP_MODULE_DECLARE_DATA convert_module;
 #define USER_AGENT "AHTSE Convert"
@@ -97,59 +97,59 @@ static void *convert_dt(const convert_conf *cfg, void *src) {
 // In place conversions, with LUT, when the output type is <= input type
 #define CONV(T_src, T_dst) conv_dt(cfg, reinterpret_cast<T_src *>(src), reinterpret_cast<T_dst *>(src)); result = src; break;
 
-    switch (cfg->inraster.datatype) {
-    case AHTSE_Int32:
-        switch (cfg->raster.datatype) {
-        case AHTSE_Float: CONV(int32_t, float);
-        case AHTSE_UInt32: CONV(int32_t, uint32_t);
-        case AHTSE_Int32: CONV(int32_t, int32_t);
-        case AHTSE_UInt16: CONV(int32_t, uint16_t);
-        case AHTSE_Int16: CONV(int32_t, int16_t);
-        case AHTSE_Byte: CONV(int32_t, uint8_t);
+    switch (cfg->inraster.dt) {
+    case ICDT_Int32:
+        switch (cfg->raster.dt) {
+        case ICDT_Float: CONV(int32_t, float);
+        case ICDT_UInt32: CONV(int32_t, uint32_t);
+        case ICDT_Int32: CONV(int32_t, int32_t);
+        case ICDT_UInt16: CONV(int32_t, uint16_t);
+        case ICDT_Int16: CONV(int32_t, int16_t);
+        case ICDT_Byte: CONV(int32_t, uint8_t);
         default:;
         }
         break;
-    case AHTSE_UInt32:
-        switch (cfg->raster.datatype) {
-        case AHTSE_Float: CONV(uint32_t, float);
-        case AHTSE_UInt32: CONV(uint32_t, uint32_t);
-        case AHTSE_Int32: CONV(uint32_t, int32_t);
-        case AHTSE_UInt16: CONV(uint32_t, uint16_t);
-        case AHTSE_Int16: CONV(uint32_t, int16_t);
-        case AHTSE_Byte: CONV(uint32_t, uint8_t);
+    case ICDT_UInt32:
+        switch (cfg->raster.dt) {
+        case ICDT_Float: CONV(uint32_t, float);
+        case ICDT_UInt32: CONV(uint32_t, uint32_t);
+        case ICDT_Int32: CONV(uint32_t, int32_t);
+        case ICDT_UInt16: CONV(uint32_t, uint16_t);
+        case ICDT_Int16: CONV(uint32_t, int16_t);
+        case ICDT_Byte: CONV(uint32_t, uint8_t);
         default:;
         }
         break;
-    case AHTSE_Int16:
-        switch (cfg->raster.datatype) {
-        case AHTSE_UInt16: CONV(int16_t, uint16_t);
-        case AHTSE_Int16: CONV(int16_t, int16_t);
-        case AHTSE_Byte: CONV(int16_t, uint8_t);
+    case ICDT_Int16:
+        switch (cfg->raster.dt) {
+        case ICDT_UInt16: CONV(int16_t, uint16_t);
+        case ICDT_Int16: CONV(int16_t, int16_t);
+        case ICDT_Byte: CONV(int16_t, uint8_t);
         default:;
         }
         break;
-    case AHTSE_UInt16:
-        switch (cfg->raster.datatype) {
-        case AHTSE_UInt16: CONV(uint16_t, uint16_t);
-        case AHTSE_Int16: CONV(uint16_t, int16_t);
-        case AHTSE_Byte: CONV(uint16_t, uint8_t);
+    case ICDT_UInt16:
+        switch (cfg->raster.dt) {
+        case ICDT_UInt16: CONV(uint16_t, uint16_t);
+        case ICDT_Int16: CONV(uint16_t, int16_t);
+        case ICDT_Byte: CONV(uint16_t, uint8_t);
         default:;
         }
         break;
-    case AHTSE_Byte:
-        switch (cfg->raster.datatype) {
-        case AHTSE_Byte: CONV(uint8_t, uint8_t);
+    case ICDT_Byte:
+        switch (cfg->raster.dt) {
+        case ICDT_Byte: CONV(uint8_t, uint8_t);
         default:;
         }
         break;
-    case AHTSE_Float:
-        switch (cfg->raster.datatype) {
-        case AHTSE_Float: CONV(float, float);
-        case AHTSE_UInt32: CONV(float, uint32_t);
-        case AHTSE_Int32: CONV(float, int32_t);
-        case AHTSE_UInt16: CONV(float, uint16_t);
-        case AHTSE_Int16: CONV(float, int16_t);
-        case AHTSE_Byte: CONV(float, uint8_t);
+    case ICDT_Float:
+        switch (cfg->raster.dt) {
+        case ICDT_Float: CONV(float, float);
+        case ICDT_UInt32: CONV(float, uint32_t);
+        case ICDT_Int32: CONV(float, int32_t);
+        case ICDT_UInt16: CONV(float, uint16_t);
+        case ICDT_Int16: CONV(float, int16_t);
+        case ICDT_Byte: CONV(float, uint8_t);
         default:;
         }
     default:;
@@ -190,8 +190,8 @@ static int handler(request_rec *r)
     SERVER_ERR_IF(!ap_get_output_filter_handle("Receive"),
         r, "mod_receive not found");
 
-    sz tile;
-    memset(&tile, 0, sizeof(sz));
+    sz5 tile;
+    memset(&tile, 0, sizeof(tile));
 
     tile.x = apr_atoi64(ARRAY_POP(tokens, char *)); RETURN_ERR_IF(errno);
     tile.y = apr_atoi64(ARRAY_POP(tokens, char *)); RETURN_ERR_IF(errno);
@@ -260,8 +260,8 @@ static int handler(request_rec *r)
 
     codec_params params(cfg->inraster);
     storage_manager raw;
-    raw.size = static_cast<int>(params.min_buffer_size());
-    raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, static_cast<size_t>(raw.size)));
+    raw.size = static_cast<int>(params.get_buffer_size());
+    raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, raw.size));
     SERVER_ERR_IF(raw.buffer == nullptr, r, "Memmory allocation error");
 
     // Accept any input format
@@ -270,7 +270,7 @@ static int handler(request_rec *r)
     if (message) {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, "raster type is %d size %d", 
-            static_cast<int>(cfg->inraster.datatype), static_cast<int>(params.min_buffer_size()));
+            static_cast<int>(cfg->inraster.dt), static_cast<int>(params.get_buffer_size()));
         return HTTP_NOT_FOUND;
     }
 
@@ -284,7 +284,7 @@ static int handler(request_rec *r)
     }
 
     // This part is only for converting Zen JPEGs to JPNG, as needed
-    if (IMG_JPEG == params.format && params.modified == 0) {
+    if (IMG_JPEG == params.raster.format && params.modified == 0) {
         // Zen mask absent or superfluous, just send the input
         apr_table_set(r->headers_out, "ETag", subreq.ETag.c_str());
         return sendImage(r, src, "image/jpeg");
@@ -301,8 +301,7 @@ static int handler(request_rec *r)
     case IMG_JPEG:
         // TODO: Something here
     case IMG_PNG: {
-        png_params out_params;
-        set_png_params(cfg->raster, &out_params);
+        png_params out_params(cfg->raster);
 
         // By default the NDV is zero, and the NVD field is zero
         // Check one more time that we had a Zen mask before turning the transparency on
@@ -315,8 +314,7 @@ static int handler(request_rec *r)
         break;
     }
     case IMG_LERC: {
-        lerc_params out_params;
-        set_lerc_params(cfg->raster, &out_params);
+        lerc_params out_params(cfg->raster);
 
         message = lerc_encode(out_params, raw, dst);
         SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
@@ -410,11 +408,10 @@ static const char *read_config(cmd_parms *cmd, convert_conf *c, const char *src,
 
     // Single band, comma separated in:out value pairs
     if (nullptr != (line = apr_table_get(kvp, "LUT")) &&
-        (err_message = read_lut(cmd, c, line, c->raster.datatype < AHTSE_Float32)))
+        (err_message = read_lut(cmd, c, line, c->raster.dt < ICDT_Float32)))
         return err_message;
 
-    if (c->raster.datatype != c->inraster.datatype &&
-        c->lut == nullptr)
+    if (c->raster.dt != c->inraster.dt && c->lut == nullptr)
         return "Data type conversion without LUT defined";
 
     return nullptr;
