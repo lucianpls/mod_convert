@@ -123,7 +123,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>libahtse.lib;libhttpd.lib;libapr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalOptions>/EXPORT:convert_module,@1</AdditionalOptions>
     </Link>
@@ -149,7 +149,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>libahtse.lib;libhttpd.lib;libapr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libahtse.lib;libhttpd.lib;libapr.lib;libicd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalOptions>/EXPORT:convert_module,@1</AdditionalOptions>
       <AdditionalLibraryDirectories>\Apache24\lib</AdditionalLibraryDirectories>

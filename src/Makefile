@@ -30,7 +30,7 @@ $(TARGET)	:	$(OBJECTS)
 	$(LIBTOOL) --mode=link g++ -o $(MODULE).la -rpath $(LIBEXECDIR) -module -avoid-version $^ $(LIBS)
 
 %.lo	:	%.cpp
-	$(LIBTOOL) --mode=compile g++ $(CXXFLAGS) $(DEFINES) $(EXTRA_INCLUDES) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
+	$(LIBTOOL) --mode=compile g++ $(CXXFLAGS) $(DEFINES) $(EXTRA_INCLUDES) -I $(EXP_INCLUDEDIR) -pthread -c -o $@ $< && touch $(@:.lo=.slo)
 
 install	:	$(TARGET)
 	$(SUDO)	$(CP) $(TARGET)	$(DEST)
