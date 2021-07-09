@@ -10,8 +10,6 @@ CXXFLAGS = -prefer-pic -O2 -Wall
 
 DEFINES = -DLINUX -D_REENTRANT -D_GNU_SOURCE $(DEBUG)
 
-LIBS = -L$(DEST) -lahtse -lstdc++
-
 FILES = $(C_SRC) $(HEADERS)
 
 # Create a file Makefile.lcl. It should define EXTRA_INCLUDES and DEST
