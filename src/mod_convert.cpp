@@ -259,6 +259,8 @@ static int handler(request_rec *r)
         return sendEmptyTile(r, cfg->raster.missing);
 
     codec_params params(cfg->inraster);
+    // Expected input raster is a single tile
+    params.raster.size = cfg->inraster.pagesize;
     storage_manager raw;
     raw.size = static_cast<int>(params.get_buffer_size());
     raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, raw.size));
