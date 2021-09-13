@@ -261,13 +261,16 @@ static int handler(request_rec *r)
     codec_params params(cfg->inraster);
     // Expected input raster is a single tile
     params.raster.size = cfg->inraster.pagesize;
+    params.reset();
     storage_manager raw;
     raw.size = static_cast<int>(params.get_buffer_size());
     raw.buffer = reinterpret_cast<char *>(apr_palloc(r->pool, raw.size));
     SERVER_ERR_IF(raw.buffer == nullptr, r, "Memmory allocation error");
 
     // Accept any input format
+    LOGNOTE(r, "Decoding");
     message = stride_decode(params, src, raw.buffer);
+    LOGNOTE(r, "Decoding returned %s", message);
 
     if (message) {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "%s from %s", message, sub_uri);
@@ -304,6 +307,8 @@ static int handler(request_rec *r)
         // TODO: Something here
     case IMG_PNG: {
         png_params out_params(cfg->raster);
+        out_params.raster.size = cfg->raster.pagesize;
+        out_params.reset();
 
         // By default the NDV is zero, and the NVD field is zero
         // Check one more time that we had a Zen mask before turning the transparency on
@@ -311,7 +316,7 @@ static int handler(request_rec *r)
             out_params.has_transparency = true;
 
         message = png_encode(out_params, raw, dst);
-        SERVER_ERR_IF(message != nullptr, r, "%s from %s", message, r->uri);
+        SERVER_ERR_IF(message != nullptr, r, "PNG encoding error: %s from %s", message, r->uri);
         out_mime = "image/png";
         break;
     }

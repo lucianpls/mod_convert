@@ -29,12 +29,9 @@
 ipch
 Debug
 Release
-jpeg
-png
-LERC
-zlib
 *.lcl
 .vs
+.vscode
 
 # Executables
 *.exe
