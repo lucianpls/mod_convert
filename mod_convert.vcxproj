@@ -208,6 +208,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>libahtse.lib;libhttpd.lib;lib$(apr).lib;libicd.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/EXPORT:convert_module,@1</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Message>Installing $(TargetPath) in $(prefix)\modules</Message>
