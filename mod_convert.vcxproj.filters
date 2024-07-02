@@ -34,5 +34,8 @@
     <None Include="src\Makefile.lcl.example">
       <Filter>Support Files</Filter>
     </None>
+    <None Include="macros.props">
+      <Filter>Support Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
