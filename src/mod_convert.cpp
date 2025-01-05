@@ -172,12 +172,10 @@ static int handler(request_rec *r)
         return DECLINED;
 
     auto *cfg = get_conf<convert_conf>(r, &convert_module);
-
+    if (!cfg || !cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
+        return DECLINED;
     // If indirect is set, only activate on subrequests
     if (cfg->indirect && r->main == nullptr)
-        return DECLINED;
-
-    if (!cfg || !cfg->arr_rxp || !requestMatches(r, cfg->arr_rxp))
         return DECLINED;
 
     apr_array_header_t *tokens = tokenize(r->pool, r->uri);
