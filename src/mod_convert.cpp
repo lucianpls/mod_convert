@@ -53,7 +53,7 @@ struct convert_conf {
 
 using namespace std;
 
-// Converstion of src from TFrom to TTo, as required by the configuration
+// Conversion of src from TFrom to TTo, as required by the configuration
 template<typename TFrom, typename TTo> static void 
     conv_dt(const convert_conf *cfg, TFrom *src, TTo *dst)
 {
